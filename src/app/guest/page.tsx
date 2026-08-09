@@ -1,0 +1,666 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { hashSensitiveData } from '@/lib/security';
+import { INITIAL_WARGA, INITIAL_KEGIATAN, INITIAL_PENGUMUMAN, INITIAL_KEUANGAN } from '@/lib/store';
+
+export default function GuestPage() {
+  const [activeSection, setActiveSection] = useState('dashboard');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Live Supabase / Store States
+  const [wargaCount, setWargaCount] = useState<number>(INITIAL_WARGA.length);
+  const [kkCount, setKkCount] = useState<number>(4);
+  const [kegiatanList, setKegiatanList] = useState(INITIAL_KEGIATAN);
+  const [pengumumanList, setPengumumanList] = useState(INITIAL_PENGUMUMAN);
+  const [wargaDisplayList, setWargaDisplayList] = useState<any[]>(INITIAL_WARGA);
+  const [transaksiDisplayList, setTransaksiDisplayList] = useState<any[]>(INITIAL_KEUANGAN);
+  const [saldoKas, setSaldoKas] = useState<number>(45280000);
+
+  // Guest Search Filter State
+  const [searchWargaQuery, setSearchWargaQuery] = useState<string>('');
+
+  const [formData, setFormData] = useState({
+    namaPemohon: '',
+    nik: '',
+    jenisSurat: 'Surat Keterangan Domisili',
+    keperluan: '',
+  });
+
+  // Fetch live data from Supabase if configured (SECURITY ENFORCED: ZERO NIK, NO_KK, OR HASHES IN GUEST QUERY)
+  useEffect(() => {
+    async function loadLiveData() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          // Fetch Warga ONLY returning public demographic fields (NO NIK, NO KK, NO HASHES)
+          const { data: wargaData } = await supabase
+            .from('warga')
+            .select('id, nama, rt, rw, status, peran_kk, jenis_kelamin, usia');
+
+          if (wargaData) {
+            setWargaCount(wargaData.length);
+            setWargaDisplayList(wargaData.length > 0 ? wargaData : []);
+            const kepalaCount = wargaData.filter((w: any) => w.peran_kk === 'Kepala Keluarga').length;
+            setKkCount(kepalaCount || 4);
+          }
+
+          // Fetch Kegiatan
+          const { data: kegData } = await supabase.from('kegiatan').select('*');
+          if (kegData && kegData.length > 0) {
+            setKegiatanList(kegData);
+          }
+
+          // Fetch Pengumuman
+          const { data: pengData } = await supabase.from('pengumuman').select('*');
+          if (pengData && pengData.length > 0) {
+            setPengumumanList(pengData);
+          }
+
+          // Fetch Keuangan
+          const { data: keuData } = await supabase.from('keuangan').select('*').order('tanggal', { ascending: false });
+          if (keuData && keuData.length > 0) {
+            setTransaksiDisplayList(keuData);
+            const pem = keuData.filter((k: any) => k.jenis === 'pemasukan').reduce((a: number, b: any) => a + Number(b.jumlah), 0);
+            const peng = keuData.filter((k: any) => k.jenis === 'pengeluaran').reduce((a: number, b: any) => a + Number(b.jumlah), 0);
+            setSaldoKas(pem - peng);
+          }
+        } catch (e) {
+          console.log('Supabase fetch error, fallback active', e);
+        }
+      }
+    }
+    loadLiveData();
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = [
+        'dashboard',
+        'data-warga',
+        'keuangan',
+        'kegiatan',
+        'iuran',
+        'surat-pengantar',
+        'pengumuman',
+      ];
+      for (const section of sections) {
+        const el = document.getElementById(section);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 120 && rect.bottom >= 120) {
+            setActiveSection(section);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const openFormWithCategory = (jenis: string) => {
+    setFormData((prev) => ({ ...prev, jenisSurat: jenis }));
+    setIsModalOpen(true);
+  };
+
+  const handleGuestSubmitSurat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const count = Math.floor(Math.random() * 800) + 100;
+    const today = new Date();
+    const monthRom = [
+      'I',
+      'II',
+      'III',
+      'IV',
+      'V',
+      'VI',
+      'VII',
+      'VIII',
+      'IX',
+      'X',
+      'XI',
+      'XII',
+    ][today.getMonth()];
+    const generatedNoSurat = `${count}/RW09/KB/${monthRom}/${today.getFullYear()}`;
+
+    // Insert into Supabase if configured
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const nikHash = await hashSensitiveData(formData.nik);
+        await supabase.from('surat_pengantar').insert({
+          no_surat: generatedNoSurat,
+          nama_pemohon: formData.namaPemohon,
+          nik_hash: nikHash,
+          jenis_surat: formData.jenisSurat,
+          keperluan: formData.keperluan,
+          status: 'Diproses',
+        });
+      } catch (err) {
+        console.log('Insert error', err);
+      }
+    }
+
+    setSuccessMessage(
+      `Pengajuan ${formData.jenisSurat} atas nama ${formData.namaPemohon} berhasil dikirim! Nomor Registrasi: ${generatedNoSurat}`
+    );
+    setIsModalOpen(false);
+    setFormData({
+      namaPemohon: '',
+      nik: '',
+      jenisSurat: 'Surat Keterangan Domisili',
+      keperluan: '',
+    });
+  };
+
+  // Safe client-side search filtering
+  const filteredWargaDisplay = wargaDisplayList.filter((w: any) => {
+    const q = searchWargaQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      w.nama.toLowerCase().includes(q) ||
+      (w.rt && w.rt.toLowerCase().includes(q)) ||
+      (w.status && w.status.toLowerCase().includes(q))
+    );
+  });
+
+  const navLinks = [
+    { href: '#dashboard', id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { href: '#data-warga', id: 'data-warga', label: 'Data Warga', icon: 'groups' },
+    { href: '#keuangan', id: 'keuangan', label: 'Keuangan', icon: 'payments' },
+    { href: '#kegiatan', id: 'kegiatan', label: 'Kegiatan', icon: 'event' },
+    { href: '#iuran', id: 'iuran', label: 'Iuran', icon: 'pie_chart' },
+    { href: '#surat-pengantar', id: 'surat-pengantar', label: 'Surat Pengantar', icon: 'description' },
+    { href: '#pengumuman', id: 'pengumuman', label: 'Pengumuman', icon: 'campaign' },
+  ];
+
+  return (
+    <div className="flex min-h-screen bg-[#f9f9f9]">
+      {/* SideNavBar Guest */}
+      <aside className="fixed left-0 top-0 h-screen w-[280px] bg-[#012366] flex flex-col py-6 shadow-sm z-50 overflow-y-auto">
+        <div className="px-6 mb-8 flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#bb0013] flex items-center justify-center shadow-md">
+              <span className="material-symbols-outlined text-white">shield</span>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white leading-tight">Tamu</h2>
+              <p className="text-xs text-white/60">Guest Access</p>
+            </div>
+          </div>
+          <div className="mt-3 px-3 py-1 bg-[#bb0013] text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            Akses Warga / Live Supabase
+          </div>
+        </div>
+
+        <nav className="flex-1 flex flex-col gap-1 px-4">
+          {navLinks.map((link) => (
+            <a
+              key={link.id}
+              href={link.href}
+              className={`flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all ${
+                activeSection === link.id
+                  ? 'bg-[#0033a0]/40 text-white border-l-4 border-[#b6c4ff]'
+                  : 'text-white/80 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined">{link.icon}</span>
+              <span>{link.label}</span>
+            </a>
+          ))}
+        </nav>
+
+        <div className="px-4 mt-8">
+          <Link
+            href="/"
+            className="w-full flex items-center gap-3 px-4 py-3 text-white/80 hover:bg-red-500/20 hover:text-white transition-all font-semibold text-sm rounded-lg"
+          >
+            <span className="material-symbols-outlined">logout</span>
+            <span>Logout</span>
+          </Link>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="ml-[280px] flex-1 flex flex-col min-h-screen">
+        {/* Top Header Guest */}
+        <header className="flex justify-between items-center h-16 px-8 bg-white border-b border-[#e2e2e2] z-40 sticky top-0">
+          <div className="flex items-center gap-4">
+            <h1 className="text-xl font-bold text-[#00216e]">Portal Komunitas</h1>
+            <div className="h-6 w-px bg-gray-300 mx-1"></div>
+            <span className="text-sm font-semibold text-[#444653]">RW 09 Kebon Bawang</span>
+          </div>
+
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
+            <span className="material-symbols-outlined text-[#00216e] text-lg">database</span>
+            <p className="text-xs font-bold text-[#00216e]">
+              {isSupabaseConfigured ? 'Live Database Active' : 'Offline Mode'}
+            </p>
+          </div>
+        </header>
+
+        {/* Scrollable Content Sections */}
+        <div className="p-8 space-y-16 pb-20">
+          {/* Notification Alert if submitted */}
+          {successMessage && (
+            <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-green-600 text-2xl">check_circle</span>
+                <p className="text-sm font-semibold">{successMessage}</p>
+              </div>
+              <button
+                onClick={() => setSuccessMessage(null)}
+                className="text-green-600 hover:text-green-800"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+          )}
+
+          {/* Dashboard Section */}
+          <section id="dashboard" className="scroll-mt-20 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1a1c1c]">Dashboard Komunitas</h2>
+              <p className="text-sm text-[#444653]">Ringkasan statistik real-time RW 09 langsung dari database.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
+                    <span className="material-symbols-outlined">groups</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[#444653]">LIVE DB</span>
+                </div>
+                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Warga</p>
+                <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{wargaCount} Jiwa</h3>
+              </div>
+
+              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#bb0013] shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="p-3 bg-[#bb0013]/10 text-[#bb0013] rounded-lg">
+                    <span className="material-symbols-outlined">badge</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[#444653]">TERDAFTAR</span>
+                </div>
+                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Kartu Keluarga</p>
+                <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{kkCount} KK</h3>
+              </div>
+
+              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="p-3 bg-gray-100 text-[#444653] rounded-lg">
+                    <span className="material-symbols-outlined">event_note</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[#444653]">AKTIF</span>
+                </div>
+                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Kegiatan</p>
+                <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{kegiatanList.length} Agenda</h3>
+              </div>
+
+              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
+                    <span className="material-symbols-outlined">account_balance_wallet</span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[#444653]">KAS KELOLAAN</span>
+                </div>
+                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Saldo Kas RW</p>
+                <h3 className="text-2xl font-bold text-[#1a1c1c] mt-1">Rp {saldoKas.toLocaleString('id-ID')}</h3>
+              </div>
+            </div>
+          </section>
+
+          {/* Data Warga Section */}
+          <section id="data-warga" className="scroll-mt-20 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-[#1a1c1c]">Data Demografi Warga</h2>
+                <p className="text-sm text-[#444653]">Demografi dan daftar penduduk lingkungan terdaftar.</p>
+              </div>
+
+              {/* Search Input Field */}
+              <div className="relative w-full md:w-80">
+                <span className="material-symbols-outlined absolute left-3 top-2.5 text-gray-400 text-lg">
+                  search
+                </span>
+                <input
+                  type="text"
+                  value={searchWargaQuery}
+                  onChange={(e) => setSearchWargaQuery(e.target.value)}
+                  placeholder="Cari nama warga / RT..."
+                  className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#00216e] outline-none shadow-sm"
+                />
+                {searchWargaQuery && (
+                  <button
+                    onClick={() => setSearchWargaQuery('')}
+                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+                  >
+                    <span className="material-symbols-outlined text-sm">cancel</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden shadow-sm">
+              <div className="p-6 border-b border-[#e2e2e2] flex justify-between items-center bg-gray-50">
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-2xl font-bold text-[#00216e]">{wargaCount} Jiwa</p>
+                    <p className="text-xs text-[#444653]">Total Terdata</p>
+                  </div>
+                  <div className="w-px bg-gray-300"></div>
+                  <div>
+                    <p className="text-2xl font-bold text-[#1a1c1c]">{kkCount} KK</p>
+                    <p className="text-xs text-[#444653]">Kepala Keluarga</p>
+                  </div>
+                </div>
+              </div>
+
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
+                    <th className="px-6 py-4">Nama Warga</th>
+                    <th className="px-6 py-4">RT / RW</th>
+                    <th className="px-6 py-4">Peran KK</th>
+                    <th className="px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 text-sm">
+                  {filteredWargaDisplay.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                        {searchWargaQuery
+                          ? `Tidak ada warga yang cocok dengan kata kunci "${searchWargaQuery}"`
+                          : 'Belum ada data warga di database Supabase.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredWargaDisplay.map((w: any, idx: number) => (
+                      <tr key={w.id || idx}>
+                        <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>
+                        <td className="px-6 py-4 text-xs">{w.rt} / {w.rw}</td>
+                        <td className="px-6 py-4 text-xs font-semibold text-purple-700">{w.peran_kk || w.peranKk || 'Kepala Keluarga'}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">
+                            {w.status || 'Tetap'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* Keuangan Section with Full History Table */}
+          <section id="keuangan" className="scroll-mt-20 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1a1c1c]">Transparansi &amp; Riwayat Keuangan</h2>
+              <p className="text-sm text-[#444653]">Laporan kas terbuka dan riwayat transaksi pemasukan/pengeluaran dana warga.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#00216e] p-6 rounded-xl text-white shadow-lg">
+                <p className="text-xs uppercase tracking-widest opacity-80 font-bold">
+                  Saldo Kas Saat Ini
+                </p>
+                <h3 className="text-3xl font-extrabold mt-2">Rp {saldoKas.toLocaleString('id-ID')}</h3>
+              </div>
+            </div>
+
+            {/* Riwayat Transaksi Table for Guest */}
+            <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden shadow-sm">
+              <div className="p-4 bg-gray-50 border-b font-bold text-[#00216e] text-sm flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">receipt_long</span>
+                  Riwayat Transaksi Keuangan Real-Time ({transaksiDisplayList.length} Catatan)
+                </span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
+                      <th className="px-6 py-4">Tanggal</th>
+                      <th className="px-6 py-4">Keterangan Transaksi</th>
+                      <th className="px-6 py-4">Kategori</th>
+                      <th className="px-6 py-4 text-right">Jumlah (Rp)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200 text-sm">
+                    {transaksiDisplayList.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                          Belum ada catatan riwayat transaksi di database.
+                        </td>
+                      </tr>
+                    ) : (
+                      transaksiDisplayList.map((t: any, idx: number) => (
+                        <tr key={t.id || idx} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 font-mono text-xs text-gray-500 font-bold">{t.tanggal}</td>
+                          <td className="px-6 py-4 font-semibold text-[#1a1c1c]">{t.keterangan}</td>
+                          <td className="px-6 py-4">
+                            <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] text-xs font-bold rounded">
+                              {t.kategori}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right font-extrabold">
+                            <span className={t.jenis === 'pemasukan' ? 'text-[#00216e]' : 'text-[#bb0013]'}>
+                              {t.jenis === 'pemasukan' ? '+' : '-'} Rp {Number(t.jumlah).toLocaleString('id-ID')}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          {/* Kegiatan Section */}
+          <section id="kegiatan" className="scroll-mt-20 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1a1c1c]">Kegiatan &amp; Agenda RW</h2>
+              <p className="text-sm text-[#444653]">Agenda dan aktivitas lingkungan mendatang.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {kegiatanList.map((keg: any, idx: number) => (
+                <div key={keg.id || idx} className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm space-y-2">
+                  <span className="px-2 py-1 bg-blue-50 text-[#00216e] text-[10px] font-bold rounded uppercase">
+                    {keg.tanggal}
+                  </span>
+                  <h4 className="font-bold text-[#1a1c1c]">{keg.judul}</h4>
+                  <p className="text-xs text-[#444653]">{keg.lokasi}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Surat Pengantar Section with Form Trigger */}
+          <section id="surat-pengantar" className="scroll-mt-20 space-y-6">
+            <div className="flex justify-between items-end">
+              <div>
+                <h2 className="text-2xl font-bold text-[#1a1c1c]">Surat Pengantar Online</h2>
+                <p className="text-sm text-[#444653]">
+                  Klik kategori di bawah atau tombol ajukan untuk mengirim permohonan surat pengantar RW.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-[#00216e] hover:bg-[#0033a0] text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-lg">add_notes</span>
+                Ajukan Surat Pengantar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div
+                onClick={() => openFormWithCategory('Surat Keterangan Domisili')}
+                className="bg-white border border-[#e2e2e2] p-6 rounded-xl border-l-4 border-l-[#00216e] hover:shadow-md cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-bold text-[#1a1c1c]">Domisili</h4>
+                  <span className="material-symbols-outlined text-[#00216e]">arrow_forward</span>
+                </div>
+                <p className="text-xs text-[#444653]">
+                  Pengantar keterangan tempat tinggal / domisili warga.
+                </p>
+              </div>
+
+              <div
+                onClick={() => openFormWithCategory('Surat Pengantar Pembuatan KTP/KK')}
+                className="bg-white border border-[#e2e2e2] p-6 rounded-xl border-l-4 border-l-[#00216e] hover:shadow-md cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-bold text-[#1a1c1c]">KTP / KK / Akta</h4>
+                  <span className="material-symbols-outlined text-[#00216e]">arrow_forward</span>
+                </div>
+                <p className="text-xs text-[#444653]">
+                  Pengantar pengurusan Kartu Keluarga atau Akta Kelahiran.
+                </p>
+              </div>
+
+              <div
+                onClick={() => openFormWithCategory('Surat Keterangan Kematian')}
+                className="bg-white border border-[#e2e2e2] p-6 rounded-xl border-l-4 border-l-[#bb0013] hover:shadow-md cursor-pointer transition-all hover:scale-[1.01]"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <h4 className="font-bold text-[#1a1c1c]">Kematian</h4>
+                  <span className="material-symbols-outlined text-[#bb0013]">arrow_forward</span>
+                </div>
+                <p className="text-xs text-[#444653]">
+                  Pengantar keterangan kematian &amp; pemakaman warga.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Pengumuman Section */}
+          <section id="pengumuman" className="scroll-mt-20 space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-[#1a1c1c]">Papan Informasi Pengumuman</h2>
+              <p className="text-sm text-[#444653]">Informasi dan berita terbaru lingkungan.</p>
+            </div>
+
+            <div className="space-y-4">
+              {pengumumanList.map((p: any, idx: number) => (
+                <div key={p.id || idx} className="bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm">
+                  <span className={`text-xs font-bold uppercase px-2 py-0.5 rounded ${p.penting ? 'bg-red-100 text-[#bb0013]' : 'bg-blue-100 text-[#00216e]'}`}>
+                    {p.kategori || 'Pengumuman'}
+                  </span>
+                  <h4 className="font-bold text-[#1a1c1c] mt-2">{p.judul}</h4>
+                  <p className="text-xs text-[#444653] mt-1">{p.isi}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <footer className="mt-auto px-8 py-6 text-center border-t border-[#e2e2e2] bg-white text-xs text-[#444653]">
+          © 2024 Portal RW 09 Kebon Bawang. Sistem Informasi Komunitas Modern.
+        </footer>
+      </main>
+
+      {/* Modal Pengajuan Surat untuk Guest/Warga */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-lg font-bold text-[#00216e]">Form Pengajuan Surat Pengantar</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleGuestSubmitSurat} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
+                  Nama Pemohon (Warga)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.namaPemohon}
+                  onChange={(e) => setFormData({ ...formData, namaPemohon: e.target.value })}
+                  placeholder="Masukkan nama lengkap Anda"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
+                  NIK (16 Digit)
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.nik}
+                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
+                  placeholder="3172xxxxxxxxxxxx"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
+                  Jenis Surat Pengantar
+                </label>
+                <select
+                  value={formData.jenisSurat}
+                  onChange={(e) => setFormData({ ...formData, jenisSurat: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                >
+                  <option value="Surat Keterangan Domisili">Surat Keterangan Domisili</option>
+                  <option value="Surat Keterangan Usaha">Surat Keterangan Usaha</option>
+                  <option value="Surat Pengantar Pembuatan KTP/KK">Surat Pengantar Pembuatan KTP/KK</option>
+                  <option value="Surat Keterangan Tidak Mampu (SKTM)">Surat Keterangan Tidak Mampu (SKTM)</option>
+                  <option value="Surat Keterangan Kematian">Surat Keterangan Kematian</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
+                  Keperluan Detail
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={formData.keperluan}
+                  onChange={(e) => setFormData({ ...formData, keperluan: e.target.value })}
+                  placeholder="Jelaskan keperluan pengajuan surat ini..."
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 border rounded-lg text-sm font-semibold text-gray-600 hover:bg-gray-100"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-[#00216e] text-[#ffffff] rounded-lg text-sm font-semibold hover:bg-[#0033a0] flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-sm">send</span>
+                  Kirim Pengajuan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
