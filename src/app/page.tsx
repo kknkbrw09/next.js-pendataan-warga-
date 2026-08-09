@@ -146,7 +146,7 @@ export default function LoginPage() {
             <span className="material-symbols-outlined text-lg">
               {loading ? 'sync' : 'admin_panel_settings'}
             </span>
-            {loading ? 'Memverifikasi Hash...' : 'Masuk sebagai Admin'}
+            {loading ? 'Memverifikasi...' : 'Masuk sebagai Admin'}
           </button>
         </form>
 
@@ -169,14 +169,7 @@ export default function LoginPage() {
           Masuk sebagai Tamu (Guest View)
         </button>
 
-        {/* Default credentials tip */}
-        <div className="mt-6 text-center text-xs text-gray-400 bg-blue-50/60 p-2.5 rounded-lg border border-blue-100 space-y-1">
-          <div className="flex items-center justify-center gap-1 font-semibold text-[#00216e]">
-            <span className="material-symbols-outlined text-xs text-emerald-600">lock</span>
-            <span>SHA-256 Hashed Authentication</span>
-          </div>
-          <p className="font-mono text-gray-600">Username: <span className="font-bold text-[#00216e]">admin</span></p>
-        </div>
+
       </div>
     </div>
   );
