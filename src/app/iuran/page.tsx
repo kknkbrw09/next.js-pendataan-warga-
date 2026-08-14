@@ -102,10 +102,11 @@ export default function IuranPage() {
 
   const handleMarkAllLunas = async () => {
     setIuranList((prev) => prev.map((item) => ({ ...item, status: 'Lunas' })));
-    if (isSupabaseConfigured && supabase) {
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
       try {
         console.log('[Supabase DB] 📡 Batch updating all iuran status to Lunas...');
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('iuran')
           .update({ status: 'Lunas' })
           .not('id', 'is', null)
@@ -115,7 +116,7 @@ export default function IuranPage() {
           console.log('[Supabase DB] 💡 Syncing/Inserting rows to Supabase...');
           await Promise.all(
             iuranList.map((item) =>
-              supabase.from('iuran').upsert({
+              client.from('iuran').upsert({
                 blok: item.blok,
                 nama_warga: item.namaWarga,
                 bulan: item.bulan,
@@ -137,10 +138,11 @@ export default function IuranPage() {
 
   const handleResetAllBelum = async () => {
     setIuranList((prev) => prev.map((item) => ({ ...item, status: 'Belum' })));
-    if (isSupabaseConfigured && supabase) {
+    const client = supabase;
+    if (isSupabaseConfigured && client) {
       try {
         console.log('[Supabase DB] 📡 Batch updating all iuran status to Belum...');
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('iuran')
           .update({ status: 'Belum' })
           .not('id', 'is', null)
@@ -150,7 +152,7 @@ export default function IuranPage() {
           console.log('[Supabase DB] 💡 Syncing/Inserting rows to Supabase...');
           await Promise.all(
             iuranList.map((item) =>
-              supabase.from('iuran').upsert({
+              client.from('iuran').upsert({
                 blok: item.blok,
                 nama_warga: item.namaWarga,
                 bulan: item.bulan,

@@ -194,9 +194,10 @@ export default function DashboardPage() {
 
         const safeQuery = async (table: string, orderCol?: string) => {
           if (!supabase) return [];
+          const client = supabase;
           try {
             console.log(`[Supabase DB] 📡 Fetching table '${table}'...`);
-            let query = supabase.from(table).select('*');
+            let query = client.from(table).select('*');
             if (orderCol) {
               query = query.order(orderCol, { ascending: false });
             }
