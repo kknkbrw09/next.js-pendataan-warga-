@@ -8,6 +8,7 @@ export interface Warga {
   rt: string;
   rw: string;
   status: 'Tetap' | 'Kontrak';
+  statusKeluarga?: 'Kepala Keluarga' | 'Anggota Keluarga' | 'Ketua RT';
   jenisKelamin: 'Laki-laki' | 'Perempuan';
   usia: number;
 }
@@ -28,7 +29,7 @@ export interface Kegiatan {
   waktu: string;
   lokasi: string;
   deskripsi: string;
-  status: 'Mendatang' | 'Selesai';
+  status: 'Mendatang' | 'Berlangsung' | 'Selesai' | 'Dibatalkan';
 }
 
 export interface Iuran {

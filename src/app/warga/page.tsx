@@ -145,7 +145,7 @@ export default function WargaPage() {
     status: 'Tetap' as 'Tetap' | 'Kontrak',
     jenisKelamin: 'Laki-laki' as 'Laki-laki' | 'Perempuan',
     usia: 30,
-    peranKk: 'Kepala Keluarga' as 'Kepala Keluarga' | 'Anggota Keluarga',
+    peranKk: 'Kepala Keluarga' as 'Kepala Keluarga' | 'Anggota Keluarga' | 'Ketua RT',
     hubunganKk: 'Kepala Keluarga',
   });
 
