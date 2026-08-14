@@ -81,12 +81,13 @@ CREATE TABLE public.iuran (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. TABEL SURAT PENGANTAR (HARDENED: HANYA MENYIMPAN NIK HASH)
+-- 5. TABEL SURAT PENGANTAR
 CREATE TABLE public.surat_pengantar (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   no_surat VARCHAR(50) NOT NULL UNIQUE,
   nama_pemohon TEXT NOT NULL,
-  nik_hash VARCHAR(64) NOT NULL,
+  nik TEXT,
+  nik_hash VARCHAR(64),
   jenis_surat TEXT NOT NULL,
   keperluan TEXT NOT NULL,
   tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -143,12 +144,27 @@ ALTER TABLE public.surat_pengantar ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.pengumuman ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public select admin" ON public.admin_users FOR SELECT USING (true);
+
 CREATE POLICY "Allow public select warga" ON public.warga FOR SELECT USING (true);
 CREATE POLICY "Allow public insert warga" ON public.warga FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update warga" ON public.warga FOR UPDATE USING (true);
+
 CREATE POLICY "Allow public select keuangan" ON public.keuangan FOR SELECT USING (true);
 CREATE POLICY "Allow public insert keuangan" ON public.keuangan FOR INSERT WITH CHECK (true);
+
 CREATE POLICY "Allow public select kegiatan" ON public.kegiatan FOR SELECT USING (true);
+CREATE POLICY "Allow public insert kegiatan" ON public.kegiatan FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update kegiatan" ON public.kegiatan FOR UPDATE USING (true);
+
 CREATE POLICY "Allow public select iuran" ON public.iuran FOR SELECT USING (true);
+CREATE POLICY "Allow public insert iuran" ON public.iuran FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update iuran" ON public.iuran FOR UPDATE USING (true);
+
 CREATE POLICY "Allow public select surat" ON public.surat_pengantar FOR SELECT USING (true);
 CREATE POLICY "Allow public insert surat" ON public.surat_pengantar FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update surat" ON public.surat_pengantar FOR UPDATE USING (true);
+
 CREATE POLICY "Allow public select pengumuman" ON public.pengumuman FOR SELECT USING (true);
+CREATE POLICY "Allow public insert pengumuman" ON public.pengumuman FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update pengumuman" ON public.pengumuman FOR UPDATE USING (true);
+

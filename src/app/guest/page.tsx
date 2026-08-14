@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { hashSensitiveData } from '@/lib/security';
 import { INITIAL_WARGA, INITIAL_KEGIATAN, INITIAL_PENGUMUMAN, INITIAL_KEUANGAN } from '@/lib/store';
+import { getAppConfig, formatNoSurat } from '@/lib/configStore';
 
 export default function GuestPage() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -30,11 +31,14 @@ export default function GuestPage() {
     keperluan: '',
   });
 
+  const [loading, setLoading] = useState(true);
+
   // Fetch live data from Supabase if configured (SECURITY ENFORCED: ZERO NIK, NO_KK, OR HASHES IN GUEST QUERY)
   useEffect(() => {
     async function loadLiveData() {
       if (isSupabaseConfigured && supabase) {
         try {
+          setLoading(true);
           // Fetch Warga ONLY returning public demographic fields (NO NIK, NO KK, NO HASHES)
           const { data: wargaData } = await supabase
             .from('warga')
@@ -68,8 +72,12 @@ export default function GuestPage() {
             setSaldoKas(pem - peng);
           }
         } catch (e) {
-          console.log('Supabase fetch error, fallback active', e);
+          console.log('Guest load error', e);
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     }
     loadLiveData();
@@ -109,41 +117,41 @@ export default function GuestPage() {
 
   const handleGuestSubmitSurat = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.nik.length !== 16) {
+      alert('NIK Pemohon harus berjumlah persis 16 digit angka!');
+      return;
+    }
+    const appConfig = getAppConfig();
     const count = Math.floor(Math.random() * 800) + 100;
     const today = new Date();
-    const monthRom = [
-      'I',
-      'II',
-      'III',
-      'IV',
-      'V',
-      'VI',
-      'VII',
-      'VIII',
-      'IX',
-      'X',
-      'XI',
-      'XII',
-    ][today.getMonth()];
-    const generatedNoSurat = `${count}/RW09/KB/${monthRom}/${today.getFullYear()}`;
+    const generatedNoSurat = formatNoSurat(appConfig.suratPrefixFormat, count, today);
 
     // Insert into Supabase if configured
     if (isSupabaseConfigured && supabase) {
       try {
         const nikHash = await hashSensitiveData(formData.nik);
-        await supabase.from('surat_pengantar').insert({
+        const { status, error } = await supabase.from('surat_pengantar').insert({
           no_surat: generatedNoSurat,
           nama_pemohon: formData.namaPemohon,
+          nik: formData.nik,
           nik_hash: nikHash,
           jenis_surat: formData.jenisSurat,
           keperluan: formData.keperluan,
           status: 'Diproses',
         });
-      } catch (err) {
+
+        if (error || (status !== 200 && status !== 201)) {
+          alert(`❌ Gagal terkirim! ${error?.message || 'Terjadi kesalahan pada database.'}`);
+          return;
+        }
+      } catch (err: any) {
         console.log('Insert error', err);
+        alert(`❌ Gagal terkirim! ${err?.message || ''}`);
+        return;
       }
     }
 
+    alert('✅ Pengajuan Berhasil Terkirim!');
     setSuccessMessage(
       `Pengajuan ${formData.jenisSurat} atas nama ${formData.namaPemohon} berhasil dikirim! Nomor Registrasi: ${generatedNoSurat}`
     );
@@ -166,6 +174,16 @@ export default function GuestPage() {
       (w.status && w.status.toLowerCase().includes(q))
     );
   });
+
+  const handleLogout = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('rw_role');
+      localStorage.removeItem('admin_name');
+      sessionStorage.clear();
+      window.location.href = '/';
+    }
+  };
 
   const navLinks = [
     { href: '#dashboard', id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -215,13 +233,13 @@ export default function GuestPage() {
         </nav>
 
         <div className="px-4 mt-8">
-          <Link
-            href="/"
-            className="w-full flex items-center gap-3 px-4 py-3 text-white/80 hover:bg-red-500/20 hover:text-white transition-all font-semibold text-sm rounded-lg"
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 text-white/80 hover:bg-red-500/20 hover:text-white transition-all font-semibold text-sm rounded-lg text-left"
           >
             <span className="material-symbols-outlined">logout</span>
-            <span>Logout</span>
-          </Link>
+            <span>Logout Tamu</span>
+          </button>
         </div>
       </aside>
 
@@ -235,11 +253,21 @@ export default function GuestPage() {
             <span className="text-sm font-semibold text-[#444653]">RW 09 Kebon Bawang</span>
           </div>
 
-          <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
-            <span className="material-symbols-outlined text-[#00216e] text-lg">database</span>
-            <p className="text-xs font-bold text-[#00216e]">
-              {isSupabaseConfigured ? 'Live Database Active' : 'Offline Mode'}
-            </p>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
+              <span className="material-symbols-outlined text-[#00216e] text-lg">database</span>
+              <p className="text-xs font-bold text-[#00216e]">
+                {isSupabaseConfigured ? 'Live Database Active' : 'Offline Mode'}
+              </p>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="bg-[#bb0013] hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+            >
+              <span className="material-symbols-outlined text-sm">logout</span>
+              Logout
+            </button>
           </div>
         </header>
 
@@ -268,7 +296,18 @@ export default function GuestPage() {
               <p className="text-sm text-[#444653]">Ringkasan statistik real-time RW 09 langsung dari database.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm h-32">
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg mb-3"></div>
+                    <div className="w-24 h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="w-32 h-6 bg-gray-300 rounded"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
                 <div className="flex justify-between items-start mb-3">
                   <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
@@ -313,6 +352,7 @@ export default function GuestPage() {
                 <h3 className="text-2xl font-bold text-[#1a1c1c] mt-1">Rp {saldoKas.toLocaleString('id-ID')}</h3>
               </div>
             </div>
+          )}
           </section>
 
           {/* Data Warga Section */}
@@ -598,16 +638,25 @@ export default function GuestPage() {
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  NIK (16 Digit)
+                  NIK Pemohon (Persis 16 Digit Angka)
                 </label>
                 <input
                   type="text"
                   required
+                  maxLength={16}
                   value={formData.nik}
-                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
-                  placeholder="3172xxxxxxxxxxxx"
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                  onChange={(e) => {
+                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 16);
+                    setFormData({ ...formData, nik: onlyNums });
+                  }}
+                  placeholder="Contoh: 3172010405780001"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-mono"
                 />
+                {formData.nik.length > 0 && formData.nik.length < 16 && (
+                  <p className="text-[11px] text-red-500 font-semibold mt-1">
+                    NIK kurang {16 - formData.nik.length} digit (harus 16 digit angka).
+                  </p>
+                )}
               </div>
 
               <div>

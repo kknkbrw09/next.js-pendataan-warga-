@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" width="200" height="240">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#DAA520"/>
+    </linearGradient>
+    <linearGradient id="blueBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0055A5"/>
+      <stop offset="100%" stop-color="#00216E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer Shield Border -->
+  <path d="M 20 20 L 180 20 L 180 130 C 180 180 100 225 100 225 C 100 225 20 180 20 130 Z" fill="url(#shieldGrad)" stroke="#B8860B" stroke-width="4"/>
+
+  <!-- Inner Blue Shield -->
+  <path d="M 28 45 L 172 45 L 172 126 C 172 170 100 212 100 212 C 100 212 28 170 28 126 Z" fill="url(#blueBg)" stroke="#FFD700" stroke-width="3"/>
+
+  <!-- Banner Top: JAYA RAYA -->
+  <rect x="35" y="24" width="130" height="20" rx="4" fill="#FFFFFF" stroke="#DAA520" stroke-width="1.5"/>
+  <text x="100" y="38" font-family="'Times New Roman', serif" font-weight="bold" font-size="13" fill="#BB0013" text-anchor="middle" letter-spacing="2">JAYA RAYA</text>
+
+  <!-- Waves at Bottom of Blue Shield -->
+  <path d="M 32 140 Q 65 130 100 140 T 168 140 L 168 150 Q 135 170 100 190 Q 65 170 32 150 Z" fill="#00A86B" opacity="0.8"/>
+  <path d="M 35 150 Q 65 165 100 180 Q 135 165 165 150" fill="none" stroke="#FFFFFF" stroke-width="3"/>
+
+  <!-- Monas Monument Center -->
+  <!-- Base -->
+  <rect x="75" y="125" width="50" height="8" rx="1" fill="#FFFFFF"/>
+  <!-- Cawan -->
+  <polygon points="70,125 130,125 120,110 80,110" fill="#E6E6E6" stroke="#CCCCCC" stroke-width="1"/>
+  <!-- Tugu Body -->
+  <polygon points="92,110 108,110 104,65 96,65" fill="#FFFFFF" stroke="#D3D3D3" stroke-width="1"/>
+  <!-- Api Kemerdekaan Gold Flame -->
+  <path d="M 100 48 C 94 54 96 60 100 65 C 104 60 106 54 100 48 Z" fill="#FF4500"/>
+  <path d="M 100 50 C 97 54 98 58 100 62 C 102 58 103 54 100 50 Z" fill="#FFD700"/>
+
+  <!-- Padi & Kapas (Left & Right Wreath) -->
+  <!-- Left Padi (Rice) -->
+  <path d="M 45 120 C 42 90 60 70 78 60" fill="none" stroke="#FFD700" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="48" cy="115" r="3" fill="#FFD700"/>
+  <circle cx="45" cy="103" r="3" fill="#FFD700"/>
+  <circle cx="47" cy="90" r="3" fill="#FFD700"/>
+  <circle cx="54" cy="78" r="3" fill="#FFD700"/>
+  <circle cx="65" cy="68" r="3" fill="#FFD700"/>
+
+  <!-- Right Kapas (Cotton) -->
+  <path d="M 155 120 C 158 90 140 70 122 60" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="152" cy="115" r="4" fill="#FFFFFF" stroke="#00A86B" stroke-width="1"/>
+  <circle cx="155" cy="103" r="4" fill="#FFFFFF" stroke="#00A86B" stroke-width="1"/>
+  <circle cx="153" cy="90" r="4" fill="#FFFFFF" stroke="#00A86B" stroke-width="1"/>
+  <circle cx="146" cy="78" r="4" fill="#FFFFFF" stroke="#00A86B" stroke-width="1"/>
+  <circle cx="135" cy="68" r="4" fill="#FFFFFF" stroke="#00A86B" stroke-width="1"/>
+</svg>

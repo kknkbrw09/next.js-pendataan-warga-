@@ -7,25 +7,27 @@ import { usePathname, useRouter } from 'next/navigation';
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isMounted, setIsMounted] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // Route Guard: Check 'admin' role in localStorage on client mount
+  // Route Guard: Strict check for 'admin' role in localStorage
   useEffect(() => {
-    setIsMounted(true);
     if (typeof window !== 'undefined') {
       const role = localStorage.getItem('rw_role');
       if (role !== 'admin') {
-        router.replace('/');
+        setIsAuthorized(false);
+        window.location.href = '/';
+      } else {
+        setIsAuthorized(true);
       }
     }
-  }, [router]);
+  }, [pathname]);
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('rw_role');
       localStorage.removeItem('admin_name');
+      window.location.href = '/';
     }
-    router.replace('/');
   };
 
   const navItems = [
@@ -36,6 +38,7 @@ export default function Sidebar() {
     { href: '/iuran', label: 'Iuran', icon: 'payments' },
     { href: '/surat', label: 'Surat Pengantar', icon: 'description' },
     { href: '/pengumuman', label: 'Pengumuman', icon: 'campaign' },
+    { href: '/config', label: 'Pengaturan', icon: 'settings' },
   ];
 
   return (

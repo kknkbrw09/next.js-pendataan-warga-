@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { INITIAL_PENGUMUMAN, Pengumuman } from '@/lib/store';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export default function PengumumanPage() {
-  const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>(INITIAL_PENGUMUMAN);
+  const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     judul: '',
@@ -15,7 +17,57 @@ export default function PengumumanPage() {
     kategori: 'Penting',
   });
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadPengumuman() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          setLoading(true);
+          const { data, error } = await supabase.from('pengumuman').select('*');
+
+          if (isMounted) {
+            if (data && !error && data.length > 0) {
+              const formatted: Pengumuman[] = data.map((d: any) => ({
+                id: d.id,
+                judul: d.judul,
+                tanggal: d.tanggal,
+                isi: d.isi,
+                penting: d.penting,
+                kategori: d.kategori || 'Pengumuman',
+              }));
+              setPengumumanList(formatted);
+            } else {
+              setPengumumanList(INITIAL_PENGUMUMAN);
+            }
+          }
+        } catch (err) {
+          console.log('Fetch pengumuman error', err);
+          if (isMounted) setPengumumanList(INITIAL_PENGUMUMAN);
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      } else {
+        if (isMounted) {
+          setPengumumanList(INITIAL_PENGUMUMAN);
+          setLoading(false);
+        }
+      }
+    }
+
+    loadPengumuman();
+
+    const timer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const today = new Date();
     const dateStr = `${today.getDate()} ${
@@ -23,6 +75,43 @@ export default function PengumumanPage() {
         today.getMonth()
       ]
     } ${today.getFullYear()}`;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('pengumuman')
+          .insert({
+            judul: formData.judul,
+            tanggal: dateStr,
+            isi: formData.isi,
+            penting: formData.penting,
+            kategori: formData.kategori,
+          })
+          .select('*');
+
+        if (data && !error && data.length > 0) {
+          const inserted: Pengumuman = {
+            id: data[0].id,
+            judul: data[0].judul,
+            tanggal: data[0].tanggal,
+            isi: data[0].isi,
+            penting: data[0].penting,
+            kategori: data[0].kategori || 'Pengumuman',
+          };
+          setPengumumanList((prev) => [inserted, ...prev]);
+          setIsModalOpen(false);
+          setFormData({
+            judul: '',
+            isi: '',
+            penting: false,
+            kategori: 'Penting',
+          });
+          return;
+        }
+      } catch (err) {
+        console.log('Insert pengumuman error', err);
+      }
+    }
 
     const newInfo: Pengumuman = {
       id: Date.now().toString(),
@@ -33,8 +122,14 @@ export default function PengumumanPage() {
       kategori: formData.kategori,
     };
 
-    setPengumumanList([newInfo, ...pengumumanList]);
+    setPengumumanList((prev) => [newInfo, ...prev]);
     setIsModalOpen(false);
+    setFormData({
+      judul: '',
+      isi: '',
+      penting: false,
+      kategori: 'Penting',
+    });
   };
 
   return (
@@ -63,7 +158,21 @@ export default function PengumumanPage() {
           </div>
 
           <div className="space-y-4">
-            {pengumumanList.map((item) => (
+            {loading ? (
+              <>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm animate-pulse flex gap-4 items-start">
+                    <div className="w-12 h-12 rounded-xl bg-gray-200 shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="w-48 h-5 bg-gray-200 rounded"></div>
+                      <div className="w-full h-4 bg-gray-200 rounded"></div>
+                      <div className="w-3/4 h-4 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              pengumumanList.map((item) => (
               <div
                 key={item.id}
                 className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row gap-6 items-start justify-between"
@@ -95,11 +204,11 @@ export default function PengumumanPage() {
                     <p className="text-xs text-[#444653] font-semibold mt-1">
                       Dipublikasikan: {item.tanggal}
                     </p>
-                    <p className="text-sm text-[#444653] mt-3 leading-relaxed">{item.isi}</p>
                   </div>
                 </div>
               </div>
-            ))}
+            ))
+          )}
           </div>
         </div>
       </main>

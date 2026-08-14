@@ -83,11 +83,19 @@ export const INITIAL_KEGIATAN: Kegiatan[] = [
   { id: '3', judul: 'Arisan & Pengajian Rutin', tanggal: '2024-11-10', waktu: '19:30 WIB', lokasi: 'Rumah Ketua RW', deskripsi: 'Silaturahmi bulanan warga dan pembahasan keamanan lingkungan.', status: 'Mendatang' },
 ];
 
+const now = new Date();
+const monthNamesIndo = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+const currentBulan = monthNamesIndo[now.getMonth()];
+const currentTahun = now.getFullYear();
+
 export const INITIAL_IURAN: Iuran[] = [
-  { id: '1', blok: 'Blok A', namaWarga: 'Budi Santoso', bulan: 'Oktober', tahun: 2024, status: 'Lunas', jumlah: 50000 },
-  { id: '2', blok: 'Blok B', namaWarga: 'Siti Aminah', bulan: 'Oktober', tahun: 2024, status: 'Belum', jumlah: 50000 },
-  { id: '3', blok: 'Blok C', namaWarga: 'Rudi Hermawan', bulan: 'Oktober', tahun: 2024, status: 'Lunas', jumlah: 50000 },
-  { id: '4', blok: 'Blok D', namaWarga: 'Hendrikus', bulan: 'Oktober', tahun: 2024, status: 'Lunas', jumlah: 50000 },
+  { id: '1', blok: 'Blok A', namaWarga: 'Budi Santoso', bulan: currentBulan, tahun: currentTahun, status: 'Lunas', jumlah: 50000 },
+  { id: '2', blok: 'Blok B', namaWarga: 'Siti Aminah', bulan: currentBulan, tahun: currentTahun, status: 'Belum', jumlah: 50000 },
+  { id: '3', blok: 'Blok C', namaWarga: 'Rudi Hermawan', bulan: currentBulan, tahun: currentTahun, status: 'Lunas', jumlah: 50000 },
+  { id: '4', blok: 'Blok D', namaWarga: 'Hendrikus', bulan: currentBulan, tahun: currentTahun, status: 'Lunas', jumlah: 50000 },
 ];
 
 export const INITIAL_SURAT: SuratPengantar[] = [

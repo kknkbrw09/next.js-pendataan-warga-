@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { INITIAL_SURAT, SuratPengantar } from '@/lib/store';
 
 interface HeaderProps {
   title: string;
@@ -8,12 +11,61 @@ interface HeaderProps {
 }
 
 export default function Header({ title, onSearch }: HeaderProps) {
+  const router = useRouter();
   const [query, setQuery] = useState('');
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<SuratPengantar[]>([]);
+  const notifRef = useRef<HTMLDivElement>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value);
     if (onSearch) onSearch(e.target.value);
   };
+
+  useEffect(() => {
+    async function fetchSuratNotifs() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('surat_pengantar')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+          if (data && !error && data.length > 0) {
+            const mapped: SuratPengantar[] = data.map((d: any) => ({
+              id: d.id,
+              noSurat: d.no_surat,
+              namaPemohon: d.nama_pemohon,
+              nik: d.nik_hash ? `${d.nik_hash.slice(0, 6)}...` : '317201...',
+              jenisSurat: d.jenis_surat,
+              keperluan: d.keperluan,
+              tanggal: d.tanggal,
+              status: d.status,
+            }));
+            setNotifications(mapped);
+            return;
+          }
+        } catch (err) {
+          console.log('Error fetching surat notifications', err);
+        }
+      }
+      setNotifications(INITIAL_SURAT);
+    }
+
+    fetchSuratNotifs();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+        setIsNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <header className="h-16 flex justify-between items-center px-6 bg-white border-b border-[#e2e2e2] shrink-0 sticky top-0 z-30">
@@ -34,13 +86,80 @@ export default function Header({ title, onSearch }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-4">
-        <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f3f3f4] transition-colors text-[#444653] relative overflow-hidden shrink-0">
-          <span className="material-symbols-outlined w-6 h-6 overflow-hidden shrink-0 flex items-center justify-center">notifications</span>
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-[#bb0013] rounded-full"></span>
-        </button>
-        <button className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f3f3f4] transition-colors text-[#444653] overflow-hidden shrink-0">
-          <span className="material-symbols-outlined w-6 h-6 overflow-hidden shrink-0 flex items-center justify-center">settings</span>
-        </button>
+        {/* Notification Bell Dropdown */}
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setIsNotifOpen(!isNotifOpen)}
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f3f3f4] transition-colors text-[#444653] relative shrink-0"
+            title="Notifikasi Request Surat"
+          >
+            <span className="material-symbols-outlined text-2xl">notifications</span>
+            {notifications.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-[#bb0013] text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white">
+                {notifications.length}
+              </span>
+            )}
+          </button>
+
+          {/* Popover Dropdown */}
+          {isNotifOpen && (
+            <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-[#e2e2e2] py-3 z-50">
+              <div className="px-4 pb-3 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[#00216e]">mark_email_unread</span>
+                  <h3 className="font-bold text-sm text-[#00216e]">Request Surat Pengantar</h3>
+                </div>
+                <span className="text-xs font-bold bg-red-100 text-[#bb0013] px-2 py-0.5 rounded-full">
+                  {notifications.length} Pengajuan
+                </span>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-50 custom-scrollbar">
+                {notifications.length === 0 ? (
+                  <div className="p-6 text-center text-gray-400 text-xs font-medium">
+                    Belum ada pengajuan surat baru.
+                  </div>
+                ) : (
+                  notifications.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        setIsNotifOpen(false);
+                        router.push('/surat');
+                      }}
+                      className="p-3.5 hover:bg-blue-50/50 transition-colors cursor-pointer flex gap-3 items-start"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#00216e] flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="material-symbols-outlined text-lg">description</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <p className="text-xs font-bold text-[#1a1c1c] truncate">{item.namaPemohon}</p>
+                          <span className="text-[10px] text-gray-400 font-medium shrink-0">{item.tanggal}</span>
+                        </div>
+                        <p className="text-xs text-[#00216e] font-semibold mt-0.5">{item.jenisSurat}</p>
+                        <p className="text-[11px] text-[#444653] truncate mt-0.5">{item.keperluan}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="pt-2 px-3 border-t border-gray-100">
+                <button
+                  onClick={() => {
+                    setIsNotifOpen(false);
+                    router.push('/surat');
+                  }}
+                  className="w-full py-2 bg-[#00216e] hover:bg-[#0033a0] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5"
+                >
+                  <span>Kelola Semua Surat</span>
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="h-8 w-px bg-[#c4c5d5] mx-1"></div>
 

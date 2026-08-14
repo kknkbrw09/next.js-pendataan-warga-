@@ -1,12 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { INITIAL_SURAT, SuratPengantar } from '@/lib/store';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { hashSensitiveData } from '@/lib/security';
+import { getAppConfig, formatNoSurat, renderFormattedNoSurat } from '@/lib/configStore';
 
 export default function SuratPage() {
-  const [suratList, setSuratList] = useState<SuratPengantar[]>(INITIAL_SURAT);
+  const [config, setConfig] = useState(getAppConfig());
+  const [suratList, setSuratList] = useState<SuratPengantar[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedSurat, setSelectedSurat] = useState<SuratPengantar | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -17,16 +22,103 @@ export default function SuratPage() {
     keperluan: '',
   });
 
-  const handleSave = (e: React.FormEvent) => {
-    e.preventDefault();
-    const count = suratList.length + 1;
-    const padCount = count.toString().padStart(3, '0');
-    const today = new Date();
-    const monthRom = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][
-      today.getMonth()
-    ];
-    const noSurat = `${padCount}/RW09/KB/${monthRom}/${today.getFullYear()}`;
+  useEffect(() => {
+    let isMounted = true;
+    setConfig(getAppConfig());
 
+    async function loadSurat() {
+      if (isSupabaseConfigured && supabase) {
+        try {
+          setLoading(true);
+          const { data, error } = await supabase.from('surat_pengantar').select('*');
+
+          if (isMounted) {
+            if (data && !error && data.length > 0) {
+              const formatted: SuratPengantar[] = data.map((d: any) => ({
+                id: d.id,
+                noSurat: d.no_surat,
+                namaPemohon: d.nama_pemohon,
+                nik: d.nik || (d.nik_hash && d.nik_hash.length === 16 ? d.nik_hash : '3172010405780001'),
+                jenisSurat: d.jenis_surat,
+                keperluan: d.keperluan,
+                tanggal: d.tanggal,
+                status: d.status,
+              }));
+              setSuratList(formatted);
+              setSelectedSurat(formatted[0]);
+            } else {
+              setSuratList(INITIAL_SURAT);
+              setSelectedSurat(INITIAL_SURAT[0]);
+            }
+          }
+        } catch (err) {
+          console.log('Fetch surat error', err);
+          if (isMounted) {
+            setSuratList(INITIAL_SURAT);
+            setSelectedSurat(INITIAL_SURAT[0]);
+          }
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      } else {
+        if (isMounted) {
+          setSuratList(INITIAL_SURAT);
+          setSelectedSurat(INITIAL_SURAT[0]);
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSurat();
+
+    const timer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.nik.length !== 16) {
+      alert('NIK Pemohon harus berjumlah persis 16 digit angka!');
+      return;
+    }
+    const appConfig = getAppConfig();
+    const count = suratList.length + 1;
+    const today = new Date();
+    const noSurat = formatNoSurat(appConfig.suratPrefixFormat, count, today);
+
+    const nikHash = await hashSensitiveData(formData.nik);
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { status, error } = await supabase.from('surat_pengantar').insert({
+          no_surat: noSurat,
+          nama_pemohon: formData.namaPemohon,
+          nik: formData.nik,
+          nik_hash: nikHash,
+          jenis_surat: formData.jenisSurat,
+          keperluan: formData.keperluan,
+          tanggal: today.toISOString().split('T')[0],
+          status: 'Selesai',
+        });
+
+        if (error || (status !== 200 && status !== 201)) {
+          alert(`❌ Gagal terkirim! ${error?.message || 'Terjadi kesalahan pada database.'}`);
+          return;
+        }
+      } catch (err: any) {
+        console.log('Insert surat error', err);
+        alert(`❌ Gagal terkirim! ${err?.message || ''}`);
+        return;
+      }
+    }
+
+    alert('✅ Pengajuan Berhasil Terkirim!');
     const newSurat: SuratPengantar = {
       id: Date.now().toString(),
       noSurat,
@@ -80,7 +172,23 @@ export default function SuratPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {loading ? (
+            <div className="bg-white rounded-xl border border-[#e2e2e2] p-8 shadow-sm animate-pulse space-y-6">
+              <div className="w-48 h-6 bg-gray-200 rounded"></div>
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex justify-between items-center py-4 border-b border-gray-100">
+                    <div className="space-y-2">
+                      <div className="w-40 h-4 bg-gray-200 rounded"></div>
+                      <div className="w-24 h-3 bg-gray-200 rounded"></div>
+                    </div>
+                    <div className="w-20 h-8 bg-gray-200 rounded-lg"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* List Surat */}
             <div className="lg:col-span-1 bg-white border border-[#e2e2e2] rounded-xl p-5 shadow-sm space-y-3">
               <h3 className="font-bold text-[#1a1c1c] text-sm border-b pb-2">
@@ -99,7 +207,7 @@ export default function SuratPage() {
                   >
                     <div className="flex justify-between items-start">
                       <span className="text-[11px] font-mono text-[#00216e] font-bold">
-                        {item.noSurat}
+                        {renderFormattedNoSurat(item.noSurat, config.suratPrefixFormat)}
                       </span>
                       <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
                         {item.status}
@@ -129,27 +237,42 @@ export default function SuratPage() {
                   </div>
 
                   {/* Surat Official Layout */}
-                  <div className="border border-gray-300 p-8 rounded-lg bg-white shadow-inner font-serif text-black space-y-6">
-                    {/* Kop Surat */}
-                    <div className="text-center border-b-4 border-double border-black pb-4">
-                      <h2 className="text-lg font-bold uppercase tracking-widest">
-                        RUKUN WARGA 09 KELURAHAN KEBON BAWANG
-                      </h2>
-                      <h3 className="text-sm font-semibold uppercase">
-                        KECAMATAN TANJUNG PRIOK - KOTA ADMINISTRASI JAKARTA UTARA
-                      </h3>
-                      <p className="text-xs italic mt-1">
-                        Sekretariat: Jl. Bugis No. 42, Kebon Bawang, Jakarta Utara 14320
-                      </p>
+                  <div
+                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
+                    className="border border-gray-300 p-8 rounded-lg bg-white shadow-inner text-black space-y-6"
+                  >
+                    {/* Kop Surat Official DKI Jakarta */}
+                    <div className="border-b-4 border-double border-black pb-3 mb-4 flex items-center gap-4">
+                      {/* Logo Jaya Raya DKI Jakarta */}
+                      <img
+                        src="/logo-dki.svg"
+                        alt="Logo Jaya Raya Jakarta"
+                        className="w-16 h-20 object-contain shrink-0"
+                      />
+                      <div className="flex-1 text-center font-bold text-black leading-snug">
+                        <h2 className="text-lg uppercase tracking-wide font-bold">
+                          RUKUN WARGA (RW) 09
+                        </h2>
+                        <h3 className="text-sm uppercase font-bold">
+                          KELURAHAN KEBON BAWANG, KECAMATAN TANJUNG PRIOK
+                        </h3>
+                        <h4 className="text-sm uppercase font-bold">
+                          KOTA ADMINISTRASI {config.kotaAdmin.toUpperCase()}
+                        </h4>
+                        <p className="text-xs font-semibold text-black mt-1 font-sans">
+                          Sekretariat : {config.alamatSekretariat}
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="text-center">
+                    <div className="text-xs font-bold text-black pt-1 pb-2">
+                      No: {renderFormattedNoSurat(selectedSurat.noSurat, config.suratPrefixFormat)}
+                    </div>
+
+                    <div className="text-center pt-2">
                       <h3 className="text-base font-bold uppercase underline">
                         {selectedSurat.jenisSurat}
                       </h3>
-                      <p className="text-xs font-mono mt-1">
-                        Nomor: {selectedSurat.noSurat}
-                      </p>
                     </div>
 
                     <p className="text-sm leading-relaxed">
@@ -178,8 +301,8 @@ export default function SuratPage() {
                     <div className="pt-8 flex justify-between items-end text-sm">
                       <div></div>
                       <div className="text-center space-y-16">
-                        <p>Jakarta, {selectedSurat.tanggal}</p>
-                        <p className="font-bold underline">Bpk. Ketua RW 09</p>
+                        <p>{config.kotaAdmin}, {selectedSurat.tanggal}</p>
+                        <p className="font-bold underline">{config.namaKetuaRw}</p>
                       </div>
                     </div>
                   </div>
@@ -194,6 +317,7 @@ export default function SuratPage() {
               )}
             </div>
           </div>
+        )}
         </div>
       </main>
 
@@ -225,16 +349,25 @@ export default function SuratPage() {
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  NIK Pemohon
+                  NIK Pemohon (Persis 16 Digit Angka)
                 </label>
                 <input
                   type="text"
                   required
+                  maxLength={16}
                   value={formData.nik}
-                  onChange={(e) => setFormData({ ...formData, nik: e.target.value })}
-                  placeholder="16 digit NIK"
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                  onChange={(e) => {
+                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 16);
+                    setFormData({ ...formData, nik: onlyNums });
+                  }}
+                  placeholder="Contoh: 3172010405780001"
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-mono"
                 />
+                {formData.nik.length > 0 && formData.nik.length < 16 && (
+                  <p className="text-[11px] text-red-500 font-semibold mt-1">
+                    NIK kurang {16 - formData.nik.length} digit (harus 16 digit angka).
+                  </p>
+                )}
               </div>
 
               <div>

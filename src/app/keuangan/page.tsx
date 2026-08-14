@@ -8,7 +8,7 @@ import { downloadCsv } from '@/lib/exportCsv';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export default function KeuanganPage() {
-  const [transaksiList, setTransaksiList] = useState<TransaksiKeuangan[]>(INITIAL_KEUANGAN);
+  const [transaksiList, setTransaksiList] = useState<TransaksiKeuangan[]>([]);
   const [selectedJenis, setSelectedJenis] = useState<'semua' | 'pemasukan' | 'pengeluaran'>('semua');
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua Kategori');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,33 +21,60 @@ export default function KeuanganPage() {
     kategori: 'Iuran',
   });
 
+  const [loading, setLoading] = useState(true);
+
   // Fetch live financial history from Supabase
   useEffect(() => {
+    let isMounted = true;
+
     async function loadKeuangan() {
       if (isSupabaseConfigured && supabase) {
         try {
+          setLoading(true);
           const { data, error } = await supabase
             .from('keuangan')
             .select('*')
             .order('tanggal', { ascending: false });
 
-          if (data && !error && data.length > 0) {
-            const formatted: TransaksiKeuangan[] = data.map((d: any) => ({
-              id: d.id,
-              tanggal: d.tanggal,
-              keterangan: d.keterangan,
-              jenis: d.jenis,
-              jumlah: Number(d.jumlah),
-              kategori: d.kategori,
-            }));
-            setTransaksiList(formatted);
+          if (isMounted) {
+            if (data && !error && data.length > 0) {
+              const formatted: TransaksiKeuangan[] = data.map((d: any) => ({
+                id: d.id,
+                tanggal: d.tanggal,
+                keterangan: d.keterangan,
+                jenis: d.jenis,
+                jumlah: Number(d.jumlah),
+                kategori: d.kategori,
+              }));
+              setTransaksiList(formatted);
+            } else {
+              setTransaksiList(INITIAL_KEUANGAN);
+            }
           }
         } catch (e) {
           console.log('Keuangan fetch error', e);
+          if (isMounted) setTransaksiList(INITIAL_KEUANGAN);
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      } else {
+        if (isMounted) {
+          setTransaksiList(INITIAL_KEUANGAN);
+          setLoading(false);
         }
       }
     }
+
     loadKeuangan();
+
+    const timer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   const totalPemasukan = transaksiList
@@ -63,27 +90,49 @@ export default function KeuanganPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const newTx: TransaksiKeuangan = {
-      id: Date.now().toString(),
-      ...formData,
-    };
-
-    // Save to Supabase if configured
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('keuangan').insert({
-          tanggal: formData.tanggal,
-          keterangan: formData.keterangan,
-          jenis: formData.jenis,
-          jumlah: formData.jumlah,
-          kategori: formData.kategori,
-        });
+        const { data, error } = await supabase
+          .from('keuangan')
+          .insert({
+            tanggal: formData.tanggal,
+            keterangan: formData.keterangan,
+            jenis: formData.jenis,
+            jumlah: formData.jumlah,
+            kategori: formData.kategori,
+          })
+          .select('*');
+
+        if (data && !error && data.length > 0) {
+          const insertedTx: TransaksiKeuangan = {
+            id: data[0].id,
+            tanggal: data[0].tanggal,
+            keterangan: data[0].keterangan,
+            jenis: data[0].jenis,
+            jumlah: Number(data[0].jumlah),
+            kategori: data[0].kategori,
+          };
+          setTransaksiList((prev) => [insertedTx, ...prev]);
+          setIsModalOpen(false);
+          setFormData({
+            tanggal: new Date().toISOString().split('T')[0],
+            keterangan: '',
+            jenis: 'pemasukan',
+            jumlah: 0,
+            kategori: 'Iuran',
+          });
+          return;
+        }
       } catch (err) {
         console.log('Insert transaction error', err);
       }
     }
 
-    setTransaksiList([newTx, ...transaksiList]);
+    const newTx: TransaksiKeuangan = {
+      id: Date.now().toString(),
+      ...formData,
+    };
+    setTransaksiList((prev) => [newTx, ...prev]);
     setIsModalOpen(false);
     setFormData({
       tanggal: new Date().toISOString().split('T')[0],
@@ -149,38 +198,57 @@ export default function KeuanganPage() {
 
           {/* Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-[#00216e] p-6 rounded-xl text-white shadow-lg flex flex-col justify-between">
-              <p className="text-xs uppercase tracking-widest opacity-80 font-bold">
-                Saldo Kas Saat Ini
-              </p>
-              <h3 className="text-3xl font-extrabold mt-3">
-                Rp {saldoSaatIni.toLocaleString('id-ID')}
-              </h3>
-            </div>
+            {loading ? (
+              <>
+                <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm animate-pulse h-28">
+                  <div className="w-24 h-4 bg-gray-200 rounded mb-3"></div>
+                  <div className="w-40 h-8 bg-gray-300 rounded"></div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm animate-pulse h-28">
+                  <div className="w-24 h-4 bg-gray-200 rounded mb-3"></div>
+                  <div className="w-40 h-8 bg-gray-300 rounded"></div>
+                </div>
+                <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm animate-pulse h-28">
+                  <div className="w-24 h-4 bg-gray-200 rounded mb-3"></div>
+                  <div className="w-40 h-8 bg-gray-300 rounded"></div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-[#00216e] p-6 rounded-xl text-white shadow-lg flex flex-col justify-between">
+                  <p className="text-xs uppercase tracking-widest opacity-80 font-bold">
+                    Saldo Kas Saat Ini
+                  </p>
+                  <h3 className="text-3xl font-extrabold mt-3">
+                    Rp {saldoSaatIni.toLocaleString('id-ID')}
+                  </h3>
+                </div>
 
-            <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#444653] font-semibold">Total Pemasukan</p>
-                <p className="text-2xl font-bold text-[#00216e] mt-1">
-                  +Rp {totalPemasukan.toLocaleString('id-ID')}
-                </p>
-              </div>
-              <div className="p-3 bg-blue-50 text-[#00216e] rounded-full">
-                <span className="material-symbols-outlined">arrow_upward</span>
-              </div>
-            </div>
+                <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-[#444653] font-semibold">Total Pemasukan</p>
+                    <p className="text-2xl font-bold text-[#00216e] mt-1">
+                      +Rp {totalPemasukan.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-blue-50 text-[#00216e] rounded-full">
+                    <span className="material-symbols-outlined">arrow_upward</span>
+                  </div>
+                </div>
 
-            <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs text-[#444653] font-semibold">Total Pengeluaran</p>
-                <p className="text-2xl font-bold text-[#bb0013] mt-1">
-                  -Rp {totalPengeluaran.toLocaleString('id-ID')}
-                </p>
-              </div>
-              <div className="p-3 bg-red-50 text-[#bb0013] rounded-full">
-                <span className="material-symbols-outlined">arrow_downward</span>
-              </div>
-            </div>
+                <div className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-[#444653] font-semibold">Total Pengeluaran</p>
+                    <p className="text-2xl font-bold text-[#bb0013] mt-1">
+                      -Rp {totalPengeluaran.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-red-50 text-[#bb0013] rounded-full">
+                    <span className="material-symbols-outlined">arrow_downward</span>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Table & History */}

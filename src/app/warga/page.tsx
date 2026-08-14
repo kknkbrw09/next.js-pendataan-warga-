@@ -10,7 +10,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface ExtendedWarga extends Warga {
   noKk: string;
-  peranKk: 'Kepala Keluarga' | 'Anggota Keluarga';
+  peranKk: 'Kepala Keluarga' | 'Anggota Keluarga' | 'Ketua RT';
   hubunganKk?: string;
   nikHash?: string;
   noKkHash?: string;
@@ -28,8 +28,8 @@ const EXTENDED_WARGA: ExtendedWarga[] = [
     status: 'Tetap',
     jenisKelamin: 'Laki-laki',
     usia: 45,
-    peranKk: 'Kepala Keluarga',
-    hubunganKk: 'Kepala Keluarga',
+    peranKk: 'Ketua RT',
+    hubunganKk: 'Ketua RT 004',
   },
   {
     id: '4',
@@ -118,7 +118,7 @@ const EXTENDED_WARGA: ExtendedWarga[] = [
 ];
 
 export default function WargaPage() {
-  const [wargaList, setWargaList] = useState<ExtendedWarga[]>(EXTENDED_WARGA);
+  const [wargaList, setWargaList] = useState<ExtendedWarga[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRt, setSelectedRt] = useState('Semua RT');
   const [selectedStatus, setSelectedStatus] = useState('Semua Status');
@@ -151,43 +151,70 @@ export default function WargaPage() {
 
   const [selectedExistingKk, setSelectedExistingKk] = useState<string>('NEW');
 
+  const [loading, setLoading] = useState(true);
+
   // Load from Supabase on mount
   useEffect(() => {
+    let isMounted = true;
+
     async function fetchSupabaseWarga() {
       if (isSupabaseConfigured && supabase) {
         try {
+          setLoading(true);
           const { data, error } = await supabase.from('warga').select('*');
-          if (data && !error && data.length > 0) {
-            const mapped: ExtendedWarga[] = data.map((d: any, idx: number) => {
-              const match = EXTENDED_WARGA.find((m) => m.nama.toLowerCase() === d.nama.toLowerCase());
-              const fallbackNik = match?.nik || `31720104${(10000000 + idx).toString().slice(1)}`;
-              const fallbackNoKk = match?.noKk || `31720101${(10000000 + Math.floor(idx / 3)).toString().slice(1)}`;
+          if (isMounted) {
+            if (data && !error && data.length > 0) {
+              const mapped: ExtendedWarga[] = data.map((d: any, idx: number) => {
+                const match = EXTENDED_WARGA.find((m) => m.nama.toLowerCase() === d.nama.toLowerCase());
+                const fallbackNik = match?.nik || `31720104${(10000000 + idx).toString().slice(1)}`;
+                const fallbackNoKk = match?.noKk || `31720101${(10000000 + Math.floor(idx / 3)).toString().slice(1)}`;
 
-              return {
-                id: d.id,
-                nama: d.nama,
-                nik: d.nik || fallbackNik,
-                noKk: d.no_kk || fallbackNoKk,
-                alamat: d.alamat,
-                rt: d.rt,
-                rw: d.rw,
-                status: d.status,
-                jenisKelamin: d.jenis_kelamin,
-                usia: d.usia,
-                peranKk: d.peran_kk,
-                hubunganKk: d.hubungan_kk || d.peran_kk,
-                nikHash: d.nik_hash,
-                noKkHash: d.no_kk_hash,
-              };
-            });
-            setWargaList(mapped);
+                return {
+                  id: d.id,
+                  nama: d.nama,
+                  nik: d.nik || fallbackNik,
+                  noKk: d.no_kk || fallbackNoKk,
+                  alamat: d.alamat,
+                  rt: d.rt,
+                  rw: d.rw,
+                  status: d.status,
+                  jenisKelamin: d.jenis_kelamin,
+                  usia: d.usia,
+                  peranKk: d.peran_kk,
+                  hubunganKk: d.hubungan_kk || d.peran_kk,
+                  nikHash: d.nik_hash,
+                  noKkHash: d.no_kk_hash,
+                };
+              });
+              setWargaList(mapped);
+            } else {
+              setWargaList(EXTENDED_WARGA);
+            }
           }
         } catch (err) {
           console.log('Fetch warga error', err);
+          if (isMounted) setWargaList(EXTENDED_WARGA);
+        } finally {
+          if (isMounted) setLoading(false);
+        }
+      } else {
+        if (isMounted) {
+          setWargaList(EXTENDED_WARGA);
+          setLoading(false);
         }
       }
     }
+
     fetchSupabaseWarga();
+
+    const timer = setTimeout(() => {
+      if (isMounted) setLoading(false);
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, []);
 
   // List of existing Kepala Keluarga for quick select
@@ -262,26 +289,48 @@ export default function WargaPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Constraint Check: Max 1 Ketua RT per RT
+    if (formData.peranKk === 'Ketua RT') {
+      const existingKetua = wargaList.find(
+        (w) => w.rt === formData.rt && w.peranKk === 'Ketua RT' && w.id !== editingWarga?.id
+      );
+      if (existingKetua) {
+        alert(
+          `❌ Gagal menyimpan! ${formData.rt} sudah memiliki Ketua RT yaitu Bpk/Ibu ${existingKetua.nama}. Dalam 1 RT hanya boleh terdapat 1 Ketua RT!`
+        );
+        return;
+      }
+    }
+
     // Generate SHA-256 Hashes ONLY for database storage
     const nikHash = await hashSensitiveData(formData.nik);
     const noKkHash = await hashSensitiveData(formData.noKk);
 
+    let insertedId = Date.now().toString();
+
     // Save to Supabase (ONLY sending nik_hash & no_kk_hash, NO plaintext NIK/KK)
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('warga').insert({
-          nama: formData.nama,
-          nik_hash: nikHash,
-          no_kk_hash: noKkHash,
-          alamat: formData.alamat,
-          rt: formData.rt,
-          rw: formData.rw,
-          status: formData.status,
-          jenis_kelamin: formData.jenisKelamin,
-          usia: formData.usia,
-          peran_kk: formData.peranKk,
-          hubungan_kk: formData.hubunganKk,
-        });
+        const { data, error } = await supabase
+          .from('warga')
+          .insert({
+            nama: formData.nama,
+            nik_hash: nikHash,
+            no_kk_hash: noKkHash,
+            alamat: formData.alamat,
+            rt: formData.rt,
+            rw: formData.rw,
+            status: formData.status,
+            jenis_kelamin: formData.jenisKelamin,
+            usia: formData.usia,
+            peran_kk: formData.peranKk,
+            hubungan_kk: formData.hubunganKk,
+          })
+          .select('*');
+
+        if (data && !error && data.length > 0) {
+          insertedId = data[0].id;
+        }
       } catch (err) {
         console.log('Insert warga error', err);
       }
@@ -295,7 +344,7 @@ export default function WargaPage() {
       );
     } else {
       const newWarga: ExtendedWarga = {
-        id: Date.now().toString(),
+        id: insertedId,
         ...formData,
         nikHash,
         noKkHash,
@@ -431,64 +480,80 @@ export default function WargaPage() {
 
           {/* Bento Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-[#00216e] shadow-sm">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-[#444653] font-semibold mb-1">Total Jiwa</p>
-                  <h3 className="text-2xl font-bold text-[#00216e]">{wargaList.length} Jiwa</h3>
+            {loading ? (
+              <>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white p-5 rounded-xl border border-[#e2e2e2] shadow-sm animate-pulse h-28 flex justify-between items-start">
+                    <div className="space-y-2">
+                      <div className="w-24 h-4 bg-gray-200 rounded"></div>
+                      <div className="w-16 h-6 bg-gray-300 rounded"></div>
+                    </div>
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg"></div>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <>
+                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-[#00216e] shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-[#444653] font-semibold mb-1">Total Jiwa</p>
+                      <h3 className="text-2xl font-bold text-[#00216e]">{wargaList.length} Jiwa</h3>
+                    </div>
+                    <span className="material-symbols-outlined p-2.5 bg-[#00216e]/10 text-[#00216e] rounded-lg">
+                      groups
+                    </span>
+                  </div>
+                  <p className="text-xs text-green-700 font-semibold mt-3 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">trending_up</span>
+                    Terdata di RW 09
+                  </p>
                 </div>
-                <span className="material-symbols-outlined p-2.5 bg-[#00216e]/10 text-[#00216e] rounded-lg">
-                  groups
-                </span>
-              </div>
-              <p className="text-xs text-green-700 font-semibold mt-3 flex items-center gap-1">
-                <span className="material-symbols-outlined text-sm">trending_up</span>
-                Terdata di RW 09
-              </p>
-            </div>
 
-            <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-[#bb0013] shadow-sm">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-[#444653] font-semibold mb-1">Kepala Keluarga (KK)</p>
-                  <h3 className="text-2xl font-bold text-[#bb0013]">{kkGroups.length} KK</h3>
+                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-[#bb0013] shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-[#444653] font-semibold mb-1">Kepala Keluarga (KK)</p>
+                      <h3 className="text-2xl font-bold text-[#bb0013]">{kkGroups.length} KK</h3>
+                    </div>
+                    <span className="material-symbols-outlined p-2.5 bg-[#bb0013]/10 text-[#bb0013] rounded-lg">
+                      badge
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#444653] mt-3">Kepala Keluarga terdaftar</p>
                 </div>
-                <span className="material-symbols-outlined p-2.5 bg-[#bb0013]/10 text-[#bb0013] rounded-lg">
-                  badge
-                </span>
-              </div>
-              <p className="text-xs text-[#444653] mt-3">Kepala Keluarga terdaftar</p>
-            </div>
 
-            <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-[#012366] shadow-sm">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Lansia (60+)</p>
-                  <h3 className="text-2xl font-bold text-[#012366]">
-                    {wargaList.filter((w) => w.usia >= 60).length} Jiwa
-                  </h3>
+                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-[#012366] shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Lansia (60+)</p>
+                      <h3 className="text-2xl font-bold text-[#012366]">
+                        {wargaList.filter((w) => w.usia >= 60).length} Jiwa
+                      </h3>
+                    </div>
+                    <span className="material-symbols-outlined p-2.5 bg-blue-100 text-[#012366] rounded-lg">
+                      elderly
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#444653] mt-3">Mendapat Layanan Posyandu</p>
                 </div>
-                <span className="material-symbols-outlined p-2.5 bg-blue-100 text-[#012366] rounded-lg">
-                  elderly
-                </span>
-              </div>
-              <p className="text-xs text-[#444653] mt-3">Mendapat Layanan Posyandu</p>
-            </div>
 
-            <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-gray-400 shadow-sm">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Balita (&lt;5)</p>
-                  <h3 className="text-2xl font-bold text-[#1a1c1c]">
-                    {wargaList.filter((w) => w.usia < 5).length} Balita
-                  </h3>
+                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-gray-400 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Balita (&lt;5)</p>
+                      <h3 className="text-2xl font-bold text-[#1a1c1c]">
+                        {wargaList.filter((w) => w.usia < 5).length} Balita
+                      </h3>
+                    </div>
+                    <span className="material-symbols-outlined p-2.5 bg-gray-100 text-[#444653] rounded-lg">
+                      child_care
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#444653] mt-3">Anak usia dini</p>
                 </div>
-                <span className="material-symbols-outlined p-2.5 bg-gray-100 text-[#444653] rounded-lg">
-                  child_care
-                </span>
-              </div>
-              <p className="text-xs text-[#444653] mt-3">Anak usia dini</p>
-            </div>
+              </>
+            )}
           </div>
 
           {/* Mode Switcher Tabs */}
@@ -517,11 +582,47 @@ export default function WargaPage() {
                 <span className="material-symbols-outlined text-sm">family_restroom</span>
                 Tampilan Per Kepala Keluarga / KK ({kkGroups.length} KK)
               </button>
+
+              <button
+                onClick={() => {
+                  setViewMode('semua');
+                  setSelectedKk('Ketua RT');
+                }}
+                className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+                  selectedKk === 'Ketua RT'
+                    ? 'bg-amber-600 text-white shadow-sm ring-2 ring-amber-400/30'
+                    : 'text-[#444653] hover:bg-amber-50 hover:text-amber-800'
+                }`}
+              >
+                <span className="material-symbols-outlined text-sm">shield_person</span>
+                👑 Data Ketua RT ({wargaList.filter((w) => w.peranKk === 'Ketua RT').length})
+              </button>
             </div>
           </div>
 
           {/* Main Content View (Per KK vs Semua Warga) */}
-          {viewMode === 'perKk' ? (
+          {loading ? (
+            <div className="bg-white rounded-xl border border-[#e2e2e2] p-8 shadow-sm animate-pulse space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="w-48 h-6 bg-gray-200 rounded"></div>
+                <div className="w-32 h-6 bg-gray-200 rounded"></div>
+              </div>
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-gray-200"></div>
+                      <div className="space-y-2">
+                        <div className="w-40 h-4 bg-gray-200 rounded"></div>
+                        <div className="w-24 h-3 bg-gray-200 rounded"></div>
+                      </div>
+                    </div>
+                    <div className="w-24 h-6 bg-gray-200 rounded-full"></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : viewMode === 'perKk' ? (
             /* KK Cards Grid View */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {kkGroups.map((group) => (
@@ -627,9 +728,10 @@ export default function WargaPage() {
                     onChange={(e) => setSelectedKk(e.target.value)}
                     className="bg-white border border-[#c4c5d5] rounded-lg px-3 py-1.5 text-xs font-bold text-[#bb0013] focus:ring-2 focus:ring-[#bb0013] outline-none"
                   >
-                    <option>Semua Peran</option>
+                    <option value="Semua Peran">Semua Peran</option>
                     <option value="Kepala Keluarga">Kepala Keluarga (KK)</option>
                     <option value="Anggota Keluarga">Anggota Keluarga</option>
+                    <option value="Ketua RT">👑 Ketua RT</option>
                   </select>
                 </div>
 
@@ -968,14 +1070,20 @@ export default function WargaPage() {
                     onChange={(e) =>
                       setFormData({
                         ...formData,
-                        peranKk: e.target.value as 'Kepala Keluarga' | 'Anggota Keluarga',
-                        hubunganKk: e.target.value === 'Kepala Keluarga' ? 'Kepala Keluarga' : 'Anak',
+                        peranKk: e.target.value as 'Kepala Keluarga' | 'Anggota Keluarga' | 'Ketua RT',
+                        hubunganKk:
+                          e.target.value === 'Kepala Keluarga'
+                            ? 'Kepala Keluarga'
+                            : e.target.value === 'Ketua RT'
+                            ? 'Ketua RT'
+                            : 'Anak',
                       })
                     }
-                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                    className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-bold"
                   >
                     <option value="Kepala Keluarga">Kepala Keluarga</option>
                     <option value="Anggota Keluarga">Anggota Keluarga</option>
+                    <option value="Ketua RT">👑 Ketua RT (1 orang per RT)</option>
                   </select>
                 </div>
 
