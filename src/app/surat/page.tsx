@@ -14,6 +14,12 @@ export default function SuratPage() {
   const [loading, setLoading] = useState(true);
   const [selectedSurat, setSelectedSurat] = useState<SuratPengantar | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const [formData, setFormData] = useState({
     namaPemohon: '',
@@ -118,7 +124,7 @@ export default function SuratPage() {
       }
     }
 
-    alert('✅ Pengajuan Berhasil Terkirim!');
+    showToast('Surat Pengantar Berhasil Dibuat!');
     const newSurat: SuratPengantar = {
       id: Date.now().toString(),
       noSurat,
@@ -142,11 +148,18 @@ export default function SuratPage() {
   };
 
   const handlePrint = () => {
+    showToast('Menyiapkan Cetak Kop Surat...');
     window.print();
   };
 
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400 no-print">
+          <span className="material-symbols-outlined text-xl">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
       <div className="no-print">
         <Sidebar />
       </div>

@@ -12,6 +12,12 @@ export default function KeuanganPage() {
   const [selectedJenis, setSelectedJenis] = useState<'semua' | 'pemasukan' | 'pengeluaran'>('semua');
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua Kategori');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
@@ -114,6 +120,7 @@ export default function KeuanganPage() {
           };
           setTransaksiList((prev) => [insertedTx, ...prev]);
           setIsModalOpen(false);
+          showToast('Transaksi Keuangan Berhasil Disimpan!');
           setFormData({
             tanggal: new Date().toISOString().split('T')[0],
             keterangan: '',
@@ -134,6 +141,7 @@ export default function KeuanganPage() {
     };
     setTransaksiList((prev) => [newTx, ...prev]);
     setIsModalOpen(false);
+    showToast('Transaksi Keuangan Berhasil Disimpan!');
     setFormData({
       tanggal: new Date().toISOString().split('T')[0],
       keterangan: '',
@@ -153,6 +161,7 @@ export default function KeuanganPage() {
       Jumlah: t.jumlah,
     }));
     downloadCsv('Laporan_Keuangan_RW09', exportData);
+    showToast('File Laporan Keuangan (CSV) Berhasil Diunduh!');
   };
 
   const filteredTransaksi = transaksiList.filter((t) => {
@@ -163,6 +172,12 @@ export default function KeuanganPage() {
 
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400">
+          <span className="material-symbols-outlined text-xl">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
       <Sidebar />
 
       <main className="ml-[280px] w-[calc(100%-280px)] min-h-screen flex flex-col">

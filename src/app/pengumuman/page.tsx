@@ -10,6 +10,12 @@ export default function PengumumanPage() {
   const [pengumumanList, setPengumumanList] = useState<Pengumuman[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
   const [formData, setFormData] = useState({
     judul: '',
     isi: '',
@@ -100,6 +106,7 @@ export default function PengumumanPage() {
           };
           setPengumumanList((prev) => [inserted, ...prev]);
           setIsModalOpen(false);
+          showToast('Pengumuman Baru Berhasil Diterbitkan!');
           setFormData({
             judul: '',
             isi: '',
@@ -113,7 +120,7 @@ export default function PengumumanPage() {
       }
     }
 
-    const newInfo: Pengumuman = {
+    const newPengumuman: Pengumuman = {
       id: Date.now().toString(),
       judul: formData.judul,
       tanggal: dateStr,
@@ -122,8 +129,9 @@ export default function PengumumanPage() {
       kategori: formData.kategori,
     };
 
-    setPengumumanList((prev) => [newInfo, ...prev]);
+    setPengumumanList((prev) => [newPengumuman, ...prev]);
     setIsModalOpen(false);
+    showToast('Pengumuman Baru Berhasil Diterbitkan!');
     setFormData({
       judul: '',
       isi: '',
@@ -134,6 +142,12 @@ export default function PengumumanPage() {
 
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400">
+          <span className="material-symbols-outlined text-xl">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
       <Sidebar />
 
       <main className="ml-[280px] w-[calc(100%-280px)] min-h-screen flex flex-col">

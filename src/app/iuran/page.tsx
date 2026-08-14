@@ -11,6 +11,12 @@ export default function IuranPage() {
   const [config, setConfig] = useState(getAppConfig());
   const [iuranList, setIuranList] = useState<Iuran[]>([]);
   const [loading, setLoading] = useState(true);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const now = new Date();
   const monthNamesIndo = [
@@ -88,6 +94,7 @@ export default function IuranPage() {
     setIuranList((prev) =>
       prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
     );
+    showToast(`Status Iuran ${targetItem.namaWarga} Berhasil Diubah ke '${newStatus}'!`);
 
     if (isSupabaseConfigured && supabase) {
       try {
@@ -102,6 +109,7 @@ export default function IuranPage() {
 
   const handleMarkAllLunas = async () => {
     setIuranList((prev) => prev.map((item) => ({ ...item, status: 'Lunas' })));
+    showToast('Semua Status Iuran Berhasil Diubah ke Lunas!');
     const client = supabase;
     if (isSupabaseConfigured && client) {
       try {
@@ -138,6 +146,7 @@ export default function IuranPage() {
 
   const handleResetAllBelum = async () => {
     setIuranList((prev) => prev.map((item) => ({ ...item, status: 'Belum' })));
+    showToast('Semua Status Iuran Berhasil Di-reset ke Belum!');
     const client = supabase;
     if (isSupabaseConfigured && client) {
       try {

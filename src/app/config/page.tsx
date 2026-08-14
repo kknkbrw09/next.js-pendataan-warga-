@@ -43,9 +43,9 @@ export default function ConfigPage() {
             </div>
 
             {savedSuccess && (
-              <div className="bg-emerald-100 border border-emerald-300 text-emerald-800 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm animate-in fade-in">
-                <span className="material-symbols-outlined text-base">check_circle</span>
-                Pengaturan Berhasil Disimpan!
+              <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400">
+                <span className="material-symbols-outlined text-xl">check_circle</span>
+                <span>Pengaturan Berhasil Disimpan!</span>
               </div>
             )}
           </div>

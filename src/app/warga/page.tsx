@@ -133,6 +133,12 @@ export default function WargaPage() {
   // Modal Add/Edit
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWarga, setEditingWarga] = useState<ExtendedWarga | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Form State
   const [formData, setFormData] = useState({
@@ -352,11 +358,13 @@ export default function WargaPage() {
       setWargaList((prev) => [newWarga, ...prev]);
     }
     setIsModalOpen(false);
+    showToast(editingWarga ? 'Data Warga Berhasil Diperbarui!' : 'Data Warga Berhasil Ditambahkan!');
   };
 
   const handleDelete = (id: string) => {
     if (confirm('Apakah Anda yakin ingin menghapus data warga ini?')) {
       setWargaList((prev) => prev.filter((w) => w.id !== id));
+      showToast('Data Warga Berhasil Dihapus!');
     }
   };
 
@@ -376,6 +384,7 @@ export default function WargaPage() {
       Status: w.status,
     }));
     downloadCsv('Data_Warga_RW09', exportData);
+    showToast('File Data Warga (CSV) Berhasil Diunduh!');
   };
 
   // Filtered List
@@ -425,6 +434,12 @@ export default function WargaPage() {
 
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400">
+          <span className="material-symbols-outlined text-xl">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
       <Sidebar />
 
       <main className="ml-[280px] w-[calc(100%-280px)] min-h-screen flex flex-col">
