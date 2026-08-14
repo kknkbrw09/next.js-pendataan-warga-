@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { hashSensitiveData } from '@/lib/security';
+import { getAppConfig } from '@/lib/configStore';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -60,30 +61,40 @@ export default function LoginPage() {
         }
       }
 
-      // 3. Fallback check for admin credentials
-      if (
-        cleanUsername === 'admin' &&
-        (cleanPassword === 'Sayapakmimbar123#' ||
-          cleanPassword === 'admin123' ||
-          cleanPassword === 'admin')
-      ) {
+      // 3. Fallback / AppConfig check for admin credentials
+      const config = getAppConfig();
+      const configuredUser = (config.adminUsername || 'admin').trim().toLowerCase();
+      const configuredPass = (config.adminPassword || 'admin').trim();
+
+      const isValidAdmin =
+        (cleanUsername === configuredUser && cleanPassword === configuredPass) ||
+        (cleanUsername === 'admin' &&
+          (cleanPassword === 'Sayapakmimbar123#' ||
+            cleanPassword === 'admin123' ||
+            cleanPassword === 'admin'));
+
+      if (isValidAdmin) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('rw_role', 'admin');
           localStorage.setItem('admin_name', 'Pengurus RW 09');
           window.location.href = '/dashboard';
         }
       } else {
-        setError(
-          'Username atau password salah. Silakan coba username: admin, password: Sayapakmimbar123# atau admin123.'
-        );
+        setError('Username atau password salah. Silakan periksa kembali kombinasi username & password Anda.');
       }
     } catch {
-      if (
-        cleanUsername === 'admin' &&
-        (cleanPassword === 'Sayapakmimbar123#' ||
-          cleanPassword === 'admin123' ||
-          cleanPassword === 'admin')
-      ) {
+      const config = getAppConfig();
+      const configuredUser = (config.adminUsername || 'admin').trim().toLowerCase();
+      const configuredPass = (config.adminPassword || 'admin').trim();
+
+      const isValidAdmin =
+        (cleanUsername === configuredUser && cleanPassword === configuredPass) ||
+        (cleanUsername === 'admin' &&
+          (cleanPassword === 'Sayapakmimbar123#' ||
+            cleanPassword === 'admin123' ||
+            cleanPassword === 'admin'));
+
+      if (isValidAdmin) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('rw_role', 'admin');
           localStorage.setItem('admin_name', 'Pengurus RW 09');

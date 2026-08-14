@@ -520,6 +520,52 @@ export default function ConfigPage() {
               </div>
             </div>
 
+            {/* Section 4: Config Akun Admin */}
+            <div className="bg-white p-6 rounded-2xl border border-[#e2e2e2] shadow-sm space-y-6">
+              <div className="flex items-center gap-3 border-b pb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                  <span className="material-symbols-outlined">lock_reset</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-[#1a1c1c]">Keamanan & Akun Login Admin</h3>
+                  <p className="text-xs text-gray-500">Ubah username & password login administrator</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
+                    Username Admin
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={config.adminUsername || 'admin'}
+                    onChange={(e) => setConfig({ ...config, adminUsername: e.target.value })}
+                    placeholder="admin"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
+                    Password Admin
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={config.adminPassword || 'admin'}
+                    onChange={(e) => setConfig({ ...config, adminPassword: e.target.value })}
+                    placeholder="Masukkan password admin baru"
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Password ini digunakan untuk login ke portal administrator RW 09.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Submit Button */}
             <div className="flex justify-end pt-4">
               <button

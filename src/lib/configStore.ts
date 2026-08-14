@@ -20,6 +20,10 @@ export interface AppConfig {
   kategoriKegiatanList: string[];
   modeStatusKegiatan: 'auto' | 'manual';
   defaultStatusKegiatan: 'Mendatang' | 'Berlangsung' | 'Selesai';
+
+  // Akun Admin Config
+  adminUsername?: string;
+  adminPassword?: string;
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
@@ -49,6 +53,9 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
   kategoriKegiatanList: ['Rapat RT/RW', 'Kerja Bakti', 'Posyandu', 'Siskamling', 'Pengajian'],
   modeStatusKegiatan: 'manual',
   defaultStatusKegiatan: 'Mendatang',
+
+  adminUsername: 'admin',
+  adminPassword: 'admin',
 };
 
 export function getAppConfig(): AppConfig {
