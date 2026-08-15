@@ -29,20 +29,12 @@ CREATE TABLE public.admin_users (
 INSERT INTO public.admin_users (username, password, nama_admin) VALUES
 ('admin', '40ab988f0f4de47d2a8b6422d1aa87598f23d9bc475519e4db5a9b9a2221d2e8', 'Pengurus RW 09');
 
--- 1. TABEL WARGA (HARDENED: Kolom NIK & KK Plaintext DIHAPUS TOTAL dari Database)
+-- 1. TABEL WARGA (HARDENED & PDP COMPLIANT: Hanya Nama, Tahun Lahir, RT)
 CREATE TABLE public.warga (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nama TEXT NOT NULL,
-  nik_hash VARCHAR(64) NOT NULL UNIQUE, -- HANYA SHA-256 HASH NIK DILINDUNGI
-  no_kk_hash VARCHAR(64) NOT NULL,     -- HANYA SHA-256 HASH NO KK DILINDUNGI
-  alamat TEXT NOT NULL,
+  tahun_lahir INT NOT NULL,
   rt VARCHAR(10) NOT NULL DEFAULT 'RT 001',
-  rw VARCHAR(10) NOT NULL DEFAULT 'RW 009',
-  status VARCHAR(20) NOT NULL DEFAULT 'Tetap',
-  jenis_kelamin VARCHAR(20) NOT NULL,
-  usia INT NOT NULL DEFAULT 30,
-  peran_kk VARCHAR(30) NOT NULL DEFAULT 'Anggota Keluarga',
-  hubungan_kk VARCHAR(30) DEFAULT 'Kepala Keluarga',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -81,17 +73,15 @@ CREATE TABLE public.iuran (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. TABEL SURAT PENGANTAR
+-- 5. TABEL ANTRIAN PELAYANAN (Dahulu Surat Pengantar)
 CREATE TABLE public.surat_pengantar (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  no_surat VARCHAR(50) NOT NULL UNIQUE,
+  no_antrian VARCHAR(20) NOT NULL,
   nama_pemohon TEXT NOT NULL,
-  nik TEXT,
-  nik_hash VARCHAR(64),
-  jenis_surat TEXT NOT NULL,
+  rt VARCHAR(10) NOT NULL DEFAULT 'RT 001',
   keperluan TEXT NOT NULL,
   tanggal DATE NOT NULL DEFAULT CURRENT_DATE,
-  status VARCHAR(20) DEFAULT 'Selesai',
+  status VARCHAR(20) DEFAULT 'Menunggu',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -106,15 +96,21 @@ CREATE TABLE public.pengumuman (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- SEED DATA MOCK WARGA DENGAN SHA-256 HASH
-INSERT INTO public.warga (nama, nik_hash, no_kk_hash, alamat, rt, rw, status, jenis_kelamin, usia, peran_kk, hubungan_kk) VALUES
-('Agus Setiawan', encode(digest('3172010405780001', 'sha256'), 'hex'), encode(digest('3172010101010001', 'sha256'), 'hex'), 'Jl. Bugis No. 42', 'RT 004', 'RW 009', 'Tetap', 'Laki-laki', 45, 'Kepala Keluarga', 'Kepala Keluarga'),
-('Dewi Lestari', encode(digest('3172016612960002', 'sha256'), 'hex'), encode(digest('3172010101010001', 'sha256'), 'hex'), 'Jl. Bugis No. 42', 'RT 004', 'RW 009', 'Tetap', 'Perempuan', 42, 'Anggota Keluarga', 'Istri'),
-('Rifky Setiawan', encode(digest('3172011503120008', 'sha256'), 'hex'), encode(digest('3172010101010001', 'sha256'), 'hex'), 'Jl. Bugis No. 42', 'RT 004', 'RW 009', 'Tetap', 'Laki-laki', 14, 'Anggota Keluarga', 'Anak'),
-('Ananda Putri', encode(digest('3172016612180009', 'sha256'), 'hex'), encode(digest('3172010101010001', 'sha256'), 'hex'), 'Jl. Bugis No. 42', 'RT 004', 'RW 009', 'Tetap', 'Perempuan', 4, 'Anggota Keluarga', 'Anak'),
-('Siti Rahmawati', encode(digest('3172015208910003', 'sha256'), 'hex'), encode(digest('3172010101010002', 'sha256'), 'hex'), 'Gang Remaja VII No. 12', 'RT 001', 'RW 009', 'Kontrak', 'Perempuan', 32, 'Kepala Keluarga', 'Kepala Keluarga'),
-('Bambang Pamungkas', encode(digest('3172012111650005', 'sha256'), 'hex'), encode(digest('3172010101010003', 'sha256'), 'hex'), 'Jl. Kebon Bawang V No. 8', 'RT 003', 'RW 009', 'Tetap', 'Laki-laki', 62, 'Kepala Keluarga', 'Kepala Keluarga'),
-('Eko Prasetyo', encode(digest('3172011503840004', 'sha256'), 'hex'), encode(digest('3172010101010004', 'sha256'), 'hex'), 'Jl. Bugis No. 51', 'RT 004', 'RW 009', 'Tetap', 'Laki-laki', 39, 'Kepala Keluarga', 'Kepala Keluarga');
+-- SEED DATA MOCK WARGA (PDP COMPLIANT: MINIMAL DATA)
+INSERT INTO public.warga (nama, tahun_lahir, rt) VALUES
+('Agus Setiawan', 1979, 'RT 004'),
+('Dewi Lestari', 1982, 'RT 004'),
+('Rifky Setiawan', 2010, 'RT 004'),
+('Ananda Putri', 2020, 'RT 004'),
+('Siti Rahmawati', 1992, 'RT 001'),
+('Bambang Pamungkas', 1964, 'RT 003'),
+('Eko Prasetyo', 1985, 'RT 004');
+
+-- SEED DATA MOCK ANTRIAN PELAYANAN
+INSERT INTO public.surat_pengantar (no_antrian, nama_pemohon, rt, keperluan, status) VALUES
+('A-001', 'Ananda Putri', 'RT 004', 'Pengurusan Surat Keterangan Domisili', 'Selesai'),
+('A-002', 'Agus Setiawan', 'RT 004', 'Konsultasi Pengajuan Permohonan KTP Baru', 'Diproses'),
+('A-003', 'Siti Rahmawati', 'RT 001', 'Pengurusan SKTM (Surat Keterangan Tidak Mampu)', 'Menunggu');
 
 -- SEED DATA MOCK KEUANGAN
 INSERT INTO public.keuangan (tanggal, keterangan, jenis, jumlah, kategori) VALUES

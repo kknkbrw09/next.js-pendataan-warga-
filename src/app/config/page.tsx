@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import { getAppConfig, saveAppConfig, DEFAULT_APP_CONFIG, AppConfig } from '@/lib/configStore';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { hashSensitiveData } from '@/lib/security';
 
 export default function ConfigPage() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
@@ -13,18 +15,32 @@ export default function ConfigPage() {
     setConfig(getAppConfig());
   }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const updated = saveAppConfig(config);
     setConfig(updated);
+
+    if (isSupabaseConfigured && supabase && config.adminUsername && config.adminPassword) {
+      try {
+        const hashedPassword = await hashSensitiveData(config.adminPassword);
+        await supabase
+          .from('admin_users')
+          .upsert(
+            {
+              username: config.adminUsername.trim().toLowerCase(),
+              password: hashedPassword,
+              nama_admin: 'Pengurus RW 09',
+            },
+            { onConflict: 'username' }
+          );
+      } catch (err) {
+        console.warn('Sync admin credentials to Supabase error:', err);
+      }
+    }
+
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };
-
-  const monthRom = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][
-    new Date().getMonth()
-  ];
-  const sampleNoSurat = `020/${config.suratPrefixFormat}/${monthRom}/${new Date().getFullYear().toString().slice(-2)}`;
 
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
@@ -38,7 +54,7 @@ export default function ConfigPage() {
             <div>
               <h2 className="text-2xl font-bold text-[#00216e]">Pengaturan Config Aplikasi</h2>
               <p className="text-sm text-[#444653] mt-1">
-                Atur format nomor surat pengantar, tarif iuran, dan konfigurasi kegiatan RW 09.
+                Atur identitas wilayah RW, tarif iuran, dan konfigurasi kegiatan RW 09.
               </p>
             </div>
 
@@ -51,39 +67,22 @@ export default function ConfigPage() {
           </div>
 
           <form onSubmit={handleSave} className="space-y-8">
-            {/* Section 1: Config Surat Pengantar */}
+            {/* Section 1: Identitas Sekretariat RW */}
             <div className="bg-white p-6 rounded-2xl border border-[#e2e2e2] shadow-sm space-y-6">
               <div className="flex items-center gap-3 border-b pb-4">
                 <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#00216e] flex items-center justify-center font-bold">
-                  <span className="material-symbols-outlined">description</span>
+                  <span className="material-symbols-outlined">home_work</span>
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[#00216e]">Konfigurasi Surat Pengantar</h3>
-                  <p className="text-xs text-gray-500">Format penomoran, alamat sekretariat & kop resmi</p>
+                  <h3 className="text-base font-bold text-[#00216e]">Identitas Sekretariat RW</h3>
+                  <p className="text-xs text-gray-500">Alamat sekretariat, nama pengurus & kota administrasi</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
-                    Prefix Format Nomor Surat
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={config.suratPrefixFormat}
-                    onChange={(e) => setConfig({ ...config, suratPrefixFormat: e.target.value })}
-                    placeholder="Contoh: Udn.SPC/RT/RW.09"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
-                  />
-                  <p className="text-[11px] text-gray-400 mt-1">
-                    Preview Nomor Surat: <span suppressHydrationWarning className="font-bold text-[#00216e] font-mono">{sampleNoSurat}</span>
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
-                    Alamat Sekretariat RW (Untuk Kop Surat)
+                    Alamat Sekretariat RW
                   </label>
                   <input
                     type="text"
@@ -97,7 +96,7 @@ export default function ConfigPage() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
-                    Jabatan / Nama Penandatangan
+                    Jabatan / Nama Ketua RW
                   </label>
                   <input
                     type="text"

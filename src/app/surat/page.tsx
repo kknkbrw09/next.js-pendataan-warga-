@@ -3,16 +3,13 @@
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
-import { INITIAL_SURAT, SuratPengantar } from '@/lib/store';
+import { INITIAL_SURAT, SuratPengantar, Warga, INITIAL_WARGA } from '@/lib/store';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { hashSensitiveData } from '@/lib/security';
-import { getAppConfig, formatNoSurat, renderFormattedNoSurat } from '@/lib/configStore';
 
-export default function SuratPage() {
-  const [config, setConfig] = useState(getAppConfig());
-  const [suratList, setSuratList] = useState<SuratPengantar[]>([]);
+export default function AntrianPelayananPage() {
+  const [antrianList, setAntrianList] = useState<SuratPengantar[]>([]);
+  const [wargaList, setWargaList] = useState<Warga[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSurat, setSelectedSurat] = useState<SuratPengantar | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -23,59 +20,68 @@ export default function SuratPage() {
 
   const [formData, setFormData] = useState({
     namaPemohon: '',
-    nik: '',
-    jenisSurat: 'Surat Keterangan Domisili',
-    keperluan: '',
+    rt: 'RT 001',
+    keperluan: 'Pengurusan Surat Keterangan Domisili',
   });
 
   useEffect(() => {
     let isMounted = true;
-    setConfig(getAppConfig());
 
-    async function loadSurat() {
+    async function loadData() {
       if (isSupabaseConfigured && supabase) {
         try {
           setLoading(true);
-          const { data, error } = await supabase.from('surat_pengantar').select('*');
+
+          // Fetch Antrian
+          const { data: antrianData, error: antrianErr } = await supabase
+            .from('surat_pengantar')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          // Fetch Warga for dropdown select
+          const { data: wargaData } = await supabase.from('warga').select('*');
 
           if (isMounted) {
-            if (data && !error && data.length > 0) {
-              const formatted: SuratPengantar[] = data.map((d: any) => ({
+            if (wargaData && wargaData.length > 0) {
+              setWargaList(wargaData.map((w: any) => ({ id: w.id, nama: w.nama, tahunLahir: w.tahun_lahir, rt: w.rt })));
+            } else {
+              setWargaList(INITIAL_WARGA);
+            }
+
+            if (antrianData && !antrianErr && antrianData.length > 0) {
+              const formatted: SuratPengantar[] = antrianData.map((d: any) => ({
                 id: d.id,
-                noSurat: d.no_surat,
+                noAntrian: d.no_antrian || 'A-001',
                 namaPemohon: d.nama_pemohon,
-                nik: d.nik || (d.nik_hash && d.nik_hash.length === 16 ? d.nik_hash : '3172010405780001'),
-                jenisSurat: d.jenis_surat,
+                rt: d.rt || 'RT 001',
                 keperluan: d.keperluan,
                 tanggal: d.tanggal,
-                status: d.status,
+                status: (d.status as any) || 'Menunggu',
               }));
-              setSuratList(formatted);
-              setSelectedSurat(formatted[0]);
+              setAntrianList(formatted);
             } else {
-              setSuratList(INITIAL_SURAT);
-              setSelectedSurat(INITIAL_SURAT[0]);
+              setAntrianList(INITIAL_SURAT);
             }
           }
         } catch (err) {
-          console.log('Fetch surat error', err);
+          console.log('Fetch antrian error', err);
           if (isMounted) {
-            setSuratList(INITIAL_SURAT);
-            setSelectedSurat(INITIAL_SURAT[0]);
+            setAntrianList(INITIAL_SURAT);
+            setWargaList(INITIAL_WARGA);
           }
         } finally {
           if (isMounted) setLoading(false);
         }
       } else {
         if (isMounted) {
-          setSuratList(INITIAL_SURAT);
-          setSelectedSurat(INITIAL_SURAT[0]);
+          setAntrianList(INITIAL_SURAT);
+          setWargaList(INITIAL_WARGA);
           setLoading(false);
         }
       }
     }
 
-    loadSurat();
+    loadData();
 
     const timer = setTimeout(() => {
       if (isMounted) setLoading(false);
@@ -87,92 +93,108 @@ export default function SuratPage() {
     };
   }, []);
 
+  // Generate next queue number A-001, A-002...
+  const generateNextNoAntrian = () => {
+    const nextNum = antrianList.length + 1;
+    return `A-${nextNum.toString().padStart(3, '0')}`;
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.nik.length !== 16) {
-      alert('NIK Pemohon harus berjumlah persis 16 digit angka!');
+    if (!formData.namaPemohon.trim()) {
+      alert('Nama pemohon wajib diisi!');
       return;
     }
-    const appConfig = getAppConfig();
-    const count = suratList.length + 1;
-    const today = new Date();
-    const noSurat = formatNoSurat(appConfig.suratPrefixFormat, count, today);
 
-    const nikHash = await hashSensitiveData(formData.nik);
+    const noAntrian = generateNextNoAntrian();
+    const today = new Date().toISOString().split('T')[0];
+    let insertedId = Date.now().toString();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const { status, error } = await supabase.from('surat_pengantar').insert({
-          no_surat: noSurat,
-          nama_pemohon: formData.namaPemohon,
-          nik: formData.nik,
-          nik_hash: nikHash,
-          jenis_surat: formData.jenisSurat,
-          keperluan: formData.keperluan,
-          tanggal: today.toISOString().split('T')[0],
-          status: 'Selesai',
-        });
+        const { data, error } = await supabase
+          .from('surat_pengantar')
+          .insert({
+            no_antrian: noAntrian,
+            nama_pemohon: formData.namaPemohon,
+            rt: formData.rt,
+            keperluan: formData.keperluan,
+            tanggal: today,
+            status: 'Menunggu',
+          })
+          .select('*');
 
-        if (error || (status !== 200 && status !== 201)) {
-          alert(`❌ Gagal terkirim! ${error?.message || 'Terjadi kesalahan pada database.'}`);
-          return;
+        if (data && !error && data.length > 0) {
+          insertedId = data[0].id;
         }
-      } catch (err: any) {
-        console.log('Insert surat error', err);
-        alert(`❌ Gagal terkirim! ${err?.message || ''}`);
-        return;
+      } catch (err) {
+        console.log('Insert antrian error', err);
       }
     }
 
-    showToast('Surat Pengantar Berhasil Dibuat!');
-    const newSurat: SuratPengantar = {
-      id: Date.now().toString(),
-      noSurat,
+    const newAntrian: SuratPengantar = {
+      id: insertedId,
+      noAntrian,
       namaPemohon: formData.namaPemohon,
-      nik: formData.nik,
-      jenisSurat: formData.jenisSurat,
+      rt: formData.rt,
       keperluan: formData.keperluan,
-      tanggal: today.toISOString().split('T')[0],
-      status: 'Selesai',
+      tanggal: today,
+      status: 'Menunggu',
     };
 
-    setSuratList([newSurat, ...suratList]);
-    setSelectedSurat(newSurat);
+    setAntrianList([newAntrian, ...antrianList]);
     setIsModalOpen(false);
+    showToast(`Antrian ${noAntrian} Berhasil Didaftarkan!`);
     setFormData({
       namaPemohon: '',
-      nik: '',
-      jenisSurat: 'Surat Keterangan Domisili',
-      keperluan: '',
+      rt: 'RT 001',
+      keperluan: 'Pengurusan Surat Keterangan Domisili',
     });
   };
 
-  const handlePrint = () => {
-    showToast('Menyiapkan Cetak Kop Surat...');
-    window.print();
+  const handleUpdateStatus = async (id: string, newStatus: 'Menunggu' | 'Diproses' | 'Selesai' | 'Dibatalkan') => {
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('surat_pengantar')
+          .update({ status: newStatus })
+          .eq('id', id);
+      } catch (err) {
+        console.log('Update antrian error', err);
+      }
+    }
+
+    setAntrianList((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
+    );
+    showToast(`Status Antrian Diubah ke '${newStatus}'`);
   };
+
+  const activeAntrian = antrianList.find((a) => a.status === 'Diproses') || antrianList.find((a) => a.status === 'Menunggu');
+  const waitingList = antrianList.filter((a) => a.status === 'Menunggu');
+  const processingList = antrianList.filter((a) => a.status === 'Diproses');
+  const completedList = antrianList.filter((a) => a.status === 'Selesai');
 
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
       {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400 no-print">
+        <div className="fixed top-6 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2.5 shadow-2xl animate-in slide-in-from-top-4 duration-300 border border-emerald-400">
           <span className="material-symbols-outlined text-xl">check_circle</span>
           <span>{toastMessage}</span>
         </div>
       )}
-      <div className="no-print">
-        <Sidebar />
-      </div>
+      <Sidebar />
 
-      <main className="ml-[280px] w-[calc(100%-280px)] min-h-screen flex flex-col no-print">
-        <Header title="Surat Pengantar RW 09" />
+      <main className="ml-[280px] w-[calc(100%-280px)] min-h-screen flex flex-col">
+        <Header title="Papan Antrian Pelayanan Warga" />
 
         <div className="flex-1 p-8 space-y-8 overflow-y-auto">
+          {/* Header Action Section */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-[#00216e]">Layanan Surat Pengantar Official</h2>
+              <h2 className="text-2xl font-bold text-[#00216e]">Antrian Pelayanan Per Orang</h2>
               <p className="text-sm text-[#444653] mt-1">
-                Penerbitan surat pengantar resmi RW 09 Kebon Bawang, Jakarta Utara.
+                Sistem antrian langsung permohonan layanan & pengurusan berkas warga RW 09.
               </p>
             </div>
 
@@ -180,167 +202,196 @@ export default function SuratPage() {
               onClick={() => setIsModalOpen(true)}
               className="bg-[#00216e] hover:bg-[#0033a0] text-white px-5 py-2.5 rounded-xl font-semibold text-sm flex items-center gap-2 shadow-md transition-all active:scale-95"
             >
-              <span className="material-symbols-outlined text-lg">add_notes</span>
-              Buat Surat Pengantar
+              <span className="material-symbols-outlined text-lg">add_card</span>
+              Tambah Antrian Baru
             </button>
           </div>
 
-          {loading ? (
-            <div className="bg-white rounded-xl border border-[#e2e2e2] p-8 shadow-sm animate-pulse space-y-6">
-              <div className="w-48 h-6 bg-gray-200 rounded"></div>
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex justify-between items-center py-4 border-b border-gray-100">
-                    <div className="space-y-2">
-                      <div className="w-40 h-4 bg-gray-200 rounded"></div>
-                      <div className="w-24 h-3 bg-gray-200 rounded"></div>
-                    </div>
-                    <div className="w-20 h-8 bg-gray-200 rounded-lg"></div>
-                  </div>
-                ))}
+          {/* Hero Card: Antrian Sedang Dipanggil / Diproses */}
+          <div className="bg-gradient-to-r from-[#00216e] to-[#012366] text-white p-6 rounded-2xl shadow-lg border border-blue-900 flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="space-y-2">
+              <span className="px-3 py-1 bg-amber-400 text-amber-950 font-bold text-xs rounded-full uppercase tracking-wider">
+                🔔 Antrian Aktif / Sedang Diproses
+              </span>
+              <h3 className="text-4xl font-extrabold font-mono tracking-tight text-white mt-2">
+                {activeAntrian ? activeAntrian.noAntrian : '---'}
+              </h3>
+              <p className="text-lg font-semibold text-blue-100">
+                {activeAntrian ? activeAntrian.namaPemohon : 'Belum ada antrian aktif'}
+              </p>
+              <p className="text-xs text-blue-200">
+                {activeAntrian ? `${activeAntrian.rt} • Keperluan: ${activeAntrian.keperluan}` : 'Silakan tambah antrian baru'}
+              </p>
+            </div>
+
+            {activeAntrian && (
+              <div className="flex gap-3 shrink-0">
+                {activeAntrian.status === 'Menunggu' && (
+                  <button
+                    onClick={() => handleUpdateStatus(activeAntrian.id, 'Diproses')}
+                    className="bg-amber-400 hover:bg-amber-300 text-amber-950 px-5 py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-lg">campaign</span>
+                    Panggil / Proses Antrian
+                  </button>
+                )}
+                {activeAntrian.status === 'Diproses' && (
+                  <button
+                    onClick={() => handleUpdateStatus(activeAntrian.id, 'Selesai')}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md flex items-center gap-2 transition-all"
+                  >
+                    <span className="material-symbols-outlined text-lg">check_circle</span>
+                    Selesaikan Pelayanan
+                  </button>
+                )}
               </div>
+            )}
+          </div>
+
+          {/* Kanban / Status Queue Grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-white p-5 rounded-xl border border-gray-200 h-64"></div>
+              ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* List Surat */}
-            <div className="lg:col-span-1 bg-white border border-[#e2e2e2] rounded-xl p-5 shadow-sm space-y-3">
-              <h3 className="font-bold text-[#1a1c1c] text-sm border-b pb-2">
-                Daftar Surat Pengantar
-              </h3>
-              <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar">
-                {suratList.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => setSelectedSurat(item)}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
-                      selectedSurat?.id === item.id
-                        ? 'border-[#00216e] bg-blue-50/60 shadow-sm'
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start">
-                      <span className="text-[11px] font-mono text-[#00216e] font-bold">
-                        {renderFormattedNoSurat(item.noSurat, config.suratPrefixFormat)}
-                      </span>
-                      <span className="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold">
-                        {item.status}
-                      </span>
-                    </div>
-                    <h4 className="font-bold text-sm text-[#1a1c1c] mt-1">{item.namaPemohon}</h4>
-                    <p className="text-xs text-[#444653] mt-0.5">{item.jenisSurat}</p>
-                    <p className="text-[11px] text-gray-400 mt-2">{item.tanggal}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Kolom Menunggu */}
+              <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-sm space-y-4">
+                <div className="flex justify-between items-center border-b border-amber-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
+                    <h3 className="font-bold text-[#1a1c1c] text-sm">Antrian Menunggu</h3>
                   </div>
-                ))}
+                  <span className="bg-amber-100 text-amber-800 font-bold text-xs px-2.5 py-0.5 rounded-full">
+                    {waitingList.length} Pemohon
+                  </span>
+                </div>
+
+                <div className="space-y-3 max-h-[450px] overflow-y-auto custom-scrollbar">
+                  {waitingList.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-6">Tidak ada antrian menunggu</p>
+                  ) : (
+                    waitingList.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-amber-50/50 border border-amber-200 rounded-xl p-4 space-y-2 hover:shadow-md transition-all"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold text-amber-800 text-sm">{item.noAntrian}</span>
+                          <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded-md">
+                            {item.rt}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-[#1a1c1c]">{item.namaPemohon}</h4>
+                        <p className="text-xs text-[#444653]">{item.keperluan}</p>
+                        <div className="pt-2 flex justify-between items-center border-t border-amber-100">
+                          <span className="text-[11px] text-gray-400">{item.tanggal}</span>
+                          <button
+                            onClick={() => handleUpdateStatus(item.id, 'Diproses')}
+                            className="bg-[#00216e] text-white px-3 py-1 rounded-lg font-bold text-xs hover:bg-[#0033a0]"
+                          >
+                            Proses
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Kolom Diproses */}
+              <div className="bg-white p-5 rounded-2xl border border-blue-200 shadow-sm space-y-4">
+                <div className="flex justify-between items-center border-b border-blue-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-blue-600"></span>
+                    <h3 className="font-bold text-[#1a1c1c] text-sm">Sedang Diproses</h3>
+                  </div>
+                  <span className="bg-blue-100 text-blue-800 font-bold text-xs px-2.5 py-0.5 rounded-full">
+                    {processingList.length} Pemohon
+                  </span>
+                </div>
+
+                <div className="space-y-3 max-h-[450px] overflow-y-auto custom-scrollbar">
+                  {processingList.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-6">Tidak ada pelayanan diproses</p>
+                  ) : (
+                    processingList.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-blue-50/50 border border-blue-200 rounded-xl p-4 space-y-2 hover:shadow-md transition-all"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold text-[#00216e] text-sm">{item.noAntrian}</span>
+                          <span className="text-[10px] bg-blue-200 text-[#00216e] font-bold px-2 py-0.5 rounded-md">
+                            {item.rt}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-[#1a1c1c]">{item.namaPemohon}</h4>
+                        <p className="text-xs text-[#444653]">{item.keperluan}</p>
+                        <div className="pt-2 flex justify-between items-center border-t border-blue-100">
+                          <span className="text-[11px] text-gray-400">{item.tanggal}</span>
+                          <button
+                            onClick={() => handleUpdateStatus(item.id, 'Selesai')}
+                            className="bg-emerald-600 text-white px-3 py-1 rounded-lg font-bold text-xs hover:bg-emerald-700"
+                          >
+                            Selesaikan
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Kolom Selesai */}
+              <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-sm space-y-4">
+                <div className="flex justify-between items-center border-b border-emerald-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-emerald-600"></span>
+                    <h3 className="font-bold text-[#1a1c1c] text-sm">Pelayanan Selesai</h3>
+                  </div>
+                  <span className="bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-0.5 rounded-full">
+                    {completedList.length} Selesai
+                  </span>
+                </div>
+
+                <div className="space-y-3 max-h-[450px] overflow-y-auto custom-scrollbar">
+                  {completedList.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-6">Belum ada pelayanan selesai</p>
+                  ) : (
+                    completedList.map((item) => (
+                      <div
+                        key={item.id}
+                        className="bg-emerald-50/40 border border-emerald-200 rounded-xl p-4 space-y-2 opacity-90"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="font-mono font-bold text-emerald-800 text-sm">{item.noAntrian}</span>
+                          <span className="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-md">
+                            Selesai
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-sm text-[#1a1c1c]">{item.namaPemohon}</h4>
+                        <p className="text-xs text-[#444653]">{item.keperluan}</p>
+                        <p className="text-[11px] text-gray-400 pt-2 border-t border-emerald-100">{item.tanggal}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-
-            {/* Document Preview Box */}
-            <div className="lg:col-span-2 bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm flex flex-col justify-between">
-              {selectedSurat ? (
-                <div>
-                  <div className="flex justify-between items-center border-b pb-4 mb-6">
-                    <h3 className="font-bold text-[#00216e]">Preview Format Cetak</h3>
-                    <button
-                      onClick={handlePrint}
-                      className="bg-[#bb0013] hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm transition-all"
-                    >
-                      <span className="material-symbols-outlined text-sm">print</span>
-                      Cetak Surat
-                    </button>
-                  </div>
-
-                  {/* Surat Official Layout */}
-                  <div
-                    style={{ fontFamily: "'Times New Roman', Times, serif" }}
-                    className="border border-gray-300 p-8 rounded-lg bg-white shadow-inner text-black space-y-6"
-                  >
-                    {/* Kop Surat Official DKI Jakarta */}
-                    <div className="border-b-4 border-double border-black pb-3 mb-4 flex items-center gap-4">
-                      {/* Logo Jaya Raya DKI Jakarta */}
-                      <img
-                        src="/logo-dki.svg"
-                        alt="Logo Jaya Raya Jakarta"
-                        className="w-16 h-20 object-contain shrink-0"
-                      />
-                      <div className="flex-1 text-center font-bold text-black leading-snug">
-                        <h2 className="text-lg uppercase tracking-wide font-bold">
-                          RUKUN WARGA (RW) 09
-                        </h2>
-                        <h3 className="text-sm uppercase font-bold">
-                          KELURAHAN KEBON BAWANG, KECAMATAN TANJUNG PRIOK
-                        </h3>
-                        <h4 className="text-sm uppercase font-bold">
-                          KOTA ADMINISTRASI {config.kotaAdmin.toUpperCase()}
-                        </h4>
-                        <p className="text-xs font-semibold text-black mt-1 font-sans">
-                          Sekretariat : {config.alamatSekretariat}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="text-xs font-bold text-black pt-1 pb-2">
-                      No: {renderFormattedNoSurat(selectedSurat.noSurat, config.suratPrefixFormat)}
-                    </div>
-
-                    <div className="text-center pt-2">
-                      <h3 className="text-base font-bold uppercase underline">
-                        {selectedSurat.jenisSurat}
-                      </h3>
-                    </div>
-
-                    <p className="text-sm leading-relaxed">
-                      Yang bertanda tangan di bawah ini Pengurus RW 09 Kelurahan Kebon Bawang, Kecamatan Tanjung Priok, Jakarta Utara, dengan ini menerangkan bahwa:
-                    </p>
-
-                    <div className="pl-6 space-y-2 text-sm">
-                      <div className="grid grid-cols-3">
-                        <span className="font-semibold">Nama Lengkap</span>
-                        <span className="col-span-2">: {selectedSurat.namaPemohon}</span>
-                      </div>
-                      <div className="grid grid-cols-3">
-                        <span className="font-semibold">NIK</span>
-                        <span className="col-span-2">: {selectedSurat.nik}</span>
-                      </div>
-                      <div className="grid grid-cols-3">
-                        <span className="font-semibold">Keperluan</span>
-                        <span className="col-span-2">: {selectedSurat.keperluan}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-sm leading-relaxed">
-                      Demikian Surat Pengantar ini dibuat dengan sebenarnya untuk dapat dipergunakan sebagaimana mestinya.
-                    </p>
-
-                    <div className="pt-8 flex justify-between items-end text-sm">
-                      <div></div>
-                      <div className="text-center space-y-16">
-                        <p>{config.kotaAdmin}, {selectedSurat.tanggal}</p>
-                        <p className="font-bold underline">{config.namaKetuaRw}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-64 flex flex-col items-center justify-center text-gray-400">
-                  <span className="material-symbols-outlined text-4xl mb-2">description</span>
-                  <p className="text-sm font-medium">
-                    Pilih surat di sebelah kiri untuk melihat preview cetak
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+          )}
         </div>
       </main>
 
-      {/* Modal Form Surat */}
+      {/* Modal Add Antrian */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-lg font-bold text-[#00216e]">Pengajuan Surat Pengantar</h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400">
+              <h3 className="text-lg font-bold text-[#00216e]">Pendaftaran Antrian Pelayanan</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -353,65 +404,62 @@ export default function SuratPage() {
                 <input
                   type="text"
                   required
+                  list="warga-list-options"
                   value={formData.namaPemohon}
-                  onChange={(e) => setFormData({ ...formData, namaPemohon: e.target.value })}
-                  placeholder="Masukkan nama pemohon"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const matched = wargaList.find((w) => w.nama.toLowerCase() === val.toLowerCase());
+                    setFormData({
+                      ...formData,
+                      namaPemohon: val,
+                      rt: matched ? matched.rt : formData.rt,
+                    });
+                  }}
+                  placeholder="Ketik nama atau pilih warga terdaftar"
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
                 />
+                <datalist id="warga-list-options">
+                  {wargaList.map((w) => (
+                    <option key={w.id} value={w.nama}>
+                      {w.nama} ({w.rt})
+                    </option>
+                  ))}
+                </datalist>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  NIK Pemohon (Persis 16 Digit Angka)
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={16}
-                  value={formData.nik}
-                  onChange={(e) => {
-                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 16);
-                    setFormData({ ...formData, nik: onlyNums });
-                  }}
-                  placeholder="Contoh: 3172010405780001"
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-mono"
-                />
-                {formData.nik.length > 0 && formData.nik.length < 16 && (
-                  <p className="text-[11px] text-red-500 font-semibold mt-1">
-                    NIK kurang {16 - formData.nik.length} digit (harus 16 digit angka).
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  Jenis Surat
+                  Wilayah RT
                 </label>
                 <select
-                  value={formData.jenisSurat}
-                  onChange={(e) => setFormData({ ...formData, jenisSurat: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                  value={formData.rt}
+                  onChange={(e) => setFormData({ ...formData, rt: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-semibold"
                 >
-                  <option>Surat Keterangan Domisili</option>
-                  <option>Surat Keterangan Usaha</option>
-                  <option>Surat Pengantar Pembuatan KTP/KK</option>
-                  <option>Surat Keterangan Tidak Mampu (SKTM)</option>
-                  <option>Surat Keterangan Kematian</option>
+                  <option value="RT 001">RT 001</option>
+                  <option value="RT 002">RT 002</option>
+                  <option value="RT 003">RT 003</option>
+                  <option value="RT 004">RT 004</option>
+                  <option value="RT 005">RT 005</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  Keperluan Detail
+                  Keperluan Pelayanan
                 </label>
-                <textarea
-                  rows={3}
-                  required
+                <select
                   value={formData.keperluan}
                   onChange={(e) => setFormData({ ...formData, keperluan: e.target.value })}
-                  placeholder="Contoh: Persyaratan pembuatan KTP baru"
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
-                />
+                >
+                  <option value="Pengurusan Surat Keterangan Domisili">Pengurusan Surat Keterangan Domisili</option>
+                  <option value="Pengurusan Surat Keterangan Usaha">Pengurusan Surat Keterangan Usaha</option>
+                  <option value="Pengurusan KTP / Kartu Keluarga">Pengurusan KTP / Kartu Keluarga</option>
+                  <option value="Pengurusan SKTM (Keterangan Tidak Mampu)">Pengurusan SKTM (Keterangan Tidak Mampu)</option>
+                  <option value="Pengurusan Surat Keterangan Kematian">Pengurusan Surat Keterangan Kematian</option>
+                  <option value="Konsultasi Pelayanan RW / RT">Konsultasi Pelayanan RW / RT</option>
+                </select>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
@@ -424,9 +472,9 @@ export default function SuratPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#00216e] text-white rounded-lg text-sm font-semibold hover:bg-[#0033a0]"
+                  className="px-5 py-2 bg-[#00216e] text-white rounded-lg text-sm font-semibold hover:bg-[#0033a0] shadow-md"
                 >
-                  Terbitkan Surat
+                  Daftarkan Antrian
                 </button>
               </div>
             </form>

@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { hashSensitiveData } from '@/lib/security';
-import { INITIAL_WARGA, INITIAL_KEGIATAN, INITIAL_PENGUMUMAN, INITIAL_KEUANGAN } from '@/lib/store';
-import { getAppConfig, formatNoSurat } from '@/lib/configStore';
+import { INITIAL_WARGA, INITIAL_KEGIATAN, INITIAL_PENGUMUMAN, INITIAL_KEUANGAN, INITIAL_SURAT } from '@/lib/store';
 
 export default function GuestPage() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -14,41 +12,40 @@ export default function GuestPage() {
 
   // Live Supabase / Store States
   const [wargaCount, setWargaCount] = useState<number>(INITIAL_WARGA.length);
-  const [kkCount, setKkCount] = useState<number>(4);
   const [kegiatanList, setKegiatanList] = useState(INITIAL_KEGIATAN);
   const [pengumumanList, setPengumumanList] = useState(INITIAL_PENGUMUMAN);
   const [wargaDisplayList, setWargaDisplayList] = useState<any[]>(INITIAL_WARGA);
   const [transaksiDisplayList, setTransaksiDisplayList] = useState<any[]>(INITIAL_KEUANGAN);
+  const [antrianDisplayList, setAntrianDisplayList] = useState<any[]>(INITIAL_SURAT);
   const [saldoKas, setSaldoKas] = useState<number>(45280000);
+
+  const currentYear = new Date().getFullYear();
 
   // Guest Search Filter State
   const [searchWargaQuery, setSearchWargaQuery] = useState<string>('');
 
   const [formData, setFormData] = useState({
     namaPemohon: '',
-    nik: '',
-    jenisSurat: 'Surat Keterangan Domisili',
-    keperluan: '',
+    rt: 'RT 001',
+    keperluan: 'Pengurusan Surat Keterangan Domisili',
   });
 
   const [loading, setLoading] = useState(true);
 
-  // Fetch live data from Supabase if configured (SECURITY ENFORCED: ZERO NIK, NO_KK, OR HASHES IN GUEST QUERY)
+  // Fetch live data from Supabase if configured
   useEffect(() => {
     async function loadLiveData() {
       if (isSupabaseConfigured && supabase) {
         try {
           setLoading(true);
-          // Fetch Warga ONLY returning public demographic fields (NO NIK, NO KK, NO HASHES)
+          // Fetch Warga (PDP Compliant: id, nama, tahun_lahir, rt)
           const { data: wargaData } = await supabase
             .from('warga')
-            .select('id, nama, rt, rw, status, peran_kk, jenis_kelamin, usia');
+            .select('id, nama, tahun_lahir, rt');
 
           if (wargaData) {
             setWargaCount(wargaData.length);
-            setWargaDisplayList(wargaData.length > 0 ? wargaData : []);
-            const kepalaCount = wargaData.filter((w: any) => w.peran_kk === 'Kepala Keluarga').length;
-            setKkCount(kepalaCount || 4);
+            setWargaDisplayList(wargaData.length > 0 ? wargaData : INITIAL_WARGA);
           }
 
           // Fetch Kegiatan
@@ -71,6 +68,12 @@ export default function GuestPage() {
             const peng = keuData.filter((k: any) => k.jenis === 'pengeluaran').reduce((a: number, b: any) => a + Number(b.jumlah), 0);
             setSaldoKas(pem - peng);
           }
+
+          // Fetch Antrian Pelayanan
+          const { data: antrianData } = await supabase.from('surat_pengantar').select('*').order('created_at', { ascending: false });
+          if (antrianData && antrianData.length > 0) {
+            setAntrianDisplayList(antrianData);
+          }
         } catch (e) {
           console.log('Guest load error', e);
         } finally {
@@ -90,8 +93,7 @@ export default function GuestPage() {
         'data-warga',
         'keuangan',
         'kegiatan',
-        'iuran',
-        'surat-pengantar',
+        'antrian-pelayanan',
         'pengumuman',
       ];
       for (const section of sections) {
@@ -110,38 +112,36 @@ export default function GuestPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const openFormWithCategory = (jenis: string) => {
-    setFormData((prev) => ({ ...prev, jenisSurat: jenis }));
+  const openFormWithCategory = (keperluan: string) => {
+    setFormData((prev) => ({ ...prev, keperluan }));
     setIsModalOpen(true);
   };
 
-  const handleGuestSubmitSurat = async (e: React.FormEvent) => {
+  const handleGuestSubmitAntrian = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.nik.length !== 16) {
-      alert('NIK Pemohon harus berjumlah persis 16 digit angka!');
+    if (!formData.namaPemohon.trim()) {
+      alert('Nama pemohon wajib diisi!');
       return;
     }
-    const appConfig = getAppConfig();
-    const count = Math.floor(Math.random() * 800) + 100;
-    const today = new Date();
-    const generatedNoSurat = formatNoSurat(appConfig.suratPrefixFormat, count, today);
+
+    const count = antrianDisplayList.length + 1;
+    const generatedNoAntrian = `A-${count.toString().padStart(3, '0')}`;
+    const today = new Date().toISOString().split('T')[0];
 
     // Insert into Supabase if configured
     if (isSupabaseConfigured && supabase) {
       try {
-        const nikHash = await hashSensitiveData(formData.nik);
-        const { status, error } = await supabase.from('surat_pengantar').insert({
-          no_surat: generatedNoSurat,
+        const { error } = await supabase.from('surat_pengantar').insert({
+          no_antrian: generatedNoAntrian,
           nama_pemohon: formData.namaPemohon,
-          nik: formData.nik,
-          nik_hash: nikHash,
-          jenis_surat: formData.jenisSurat,
+          rt: formData.rt,
           keperluan: formData.keperluan,
-          status: 'Diproses',
+          tanggal: today,
+          status: 'Menunggu',
         });
 
-        if (error || (status !== 200 && status !== 201)) {
-          alert(`❌ Gagal terkirim! ${error?.message || 'Terjadi kesalahan pada database.'}`);
+        if (error) {
+          alert(`❌ Gagal terkirim! ${error.message}`);
           return;
         }
       } catch (err: any) {
@@ -151,16 +151,25 @@ export default function GuestPage() {
       }
     }
 
-    alert('✅ Pengajuan Berhasil Terkirim!');
+    const newAntrian = {
+      id: Date.now().toString(),
+      no_antrian: generatedNoAntrian,
+      nama_pemohon: formData.namaPemohon,
+      rt: formData.rt,
+      keperluan: formData.keperluan,
+      tanggal: today,
+      status: 'Menunggu',
+    };
+
+    setAntrianDisplayList([newAntrian, ...antrianDisplayList]);
     setSuccessMessage(
-      `Pengajuan ${formData.jenisSurat} atas nama ${formData.namaPemohon} berhasil dikirim! Nomor Registrasi: ${generatedNoSurat}`
+      `Pengajuan antrian atas nama ${formData.namaPemohon} berhasil terdaftar! Nomor Antrian: ${generatedNoAntrian}`
     );
     setIsModalOpen(false);
     setFormData({
       namaPemohon: '',
-      nik: '',
-      jenisSurat: 'Surat Keterangan Domisili',
-      keperluan: '',
+      rt: 'RT 001',
+      keperluan: 'Pengurusan Surat Keterangan Domisili',
     });
   };
 
@@ -170,8 +179,7 @@ export default function GuestPage() {
     if (!q) return true;
     return (
       w.nama.toLowerCase().includes(q) ||
-      (w.rt && w.rt.toLowerCase().includes(q)) ||
-      (w.status && w.status.toLowerCase().includes(q))
+      (w.rt && w.rt.toLowerCase().includes(q))
     );
   });
 
@@ -190,8 +198,7 @@ export default function GuestPage() {
     { href: '#data-warga', id: 'data-warga', label: 'Data Warga', icon: 'groups' },
     { href: '#keuangan', id: 'keuangan', label: 'Keuangan', icon: 'payments' },
     { href: '#kegiatan', id: 'kegiatan', label: 'Kegiatan', icon: 'event' },
-    { href: '#iuran', id: 'iuran', label: 'Iuran', icon: 'pie_chart' },
-    { href: '#surat-pengantar', id: 'surat-pengantar', label: 'Surat Pengantar', icon: 'description' },
+    { href: '#antrian-pelayanan', id: 'antrian-pelayanan', label: 'Antrian Pelayanan', icon: 'confirmation_number' },
     { href: '#pengumuman', id: 'pengumuman', label: 'Pengumuman', icon: 'campaign' },
   ];
 
@@ -209,9 +216,9 @@ export default function GuestPage() {
               <p className="text-xs text-white/60">Guest Access</p>
             </div>
           </div>
-          <div className="mt-3 px-3 py-1 bg-[#bb0013] text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            Akses Warga / Live Supabase
+          <div className="mt-3 px-3 py-1 bg-emerald-700 text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
+            Akses Warga / PDP Safe
           </div>
         </div>
 
@@ -254,10 +261,10 @@ export default function GuestPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
-              <span className="material-symbols-outlined text-[#00216e] text-lg">database</span>
-              <p className="text-xs font-bold text-[#00216e]">
-                {isSupabaseConfigured ? 'Live Database Active' : 'Offline Mode'}
+            <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
+              <span className="material-symbols-outlined text-emerald-700 text-lg">verified_user</span>
+              <p className="text-xs font-bold text-emerald-800">
+                Terlindungi UU PDP
               </p>
             </div>
 
@@ -275,14 +282,14 @@ export default function GuestPage() {
         <div className="p-8 space-y-16 pb-20">
           {/* Notification Alert if submitted */}
           {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-800 p-4 rounded-xl flex items-center justify-between shadow-sm">
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-xl flex items-center justify-between shadow-sm">
               <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-green-600 text-2xl">check_circle</span>
+                <span className="material-symbols-outlined text-emerald-600 text-2xl">check_circle</span>
                 <p className="text-sm font-semibold">{successMessage}</p>
               </div>
               <button
                 onClick={() => setSuccessMessage(null)}
-                className="text-green-600 hover:text-green-800"
+                className="text-emerald-600 hover:text-emerald-800"
               >
                 <span className="material-symbols-outlined">close</span>
               </button>
@@ -297,8 +304,8 @@ export default function GuestPage() {
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-pulse">
-                {[1, 2, 3, 4].map((i) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+                {[1, 2, 3].map((i) => (
                   <div key={i} className="bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm h-32">
                     <div className="w-10 h-10 bg-gray-200 rounded-lg mb-3"></div>
                     <div className="w-24 h-4 bg-gray-200 rounded mb-2"></div>
@@ -307,60 +314,49 @@ export default function GuestPage() {
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
-                    <span className="material-symbols-outlined">groups</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
+                      <span className="material-symbols-outlined">groups</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">PDP SAFE</span>
                   </div>
-                  <span className="text-[10px] font-bold text-[#444653]">LIVE DB</span>
+                  <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Warga</p>
+                  <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{wargaCount} Jiwa</h3>
                 </div>
-                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Warga</p>
-                <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{wargaCount} Jiwa</h3>
-              </div>
 
-              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#bb0013] shadow-sm">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="p-3 bg-[#bb0013]/10 text-[#bb0013] rounded-lg">
-                    <span className="material-symbols-outlined">badge</span>
+                <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="p-3 bg-gray-100 text-[#444653] rounded-lg">
+                      <span className="material-symbols-outlined">event_note</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#444653]">AKTIF</span>
                   </div>
-                  <span className="text-[10px] font-bold text-[#444653]">TERDAFTAR</span>
+                  <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Kegiatan</p>
+                  <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{kegiatanList.length} Agenda</h3>
                 </div>
-                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Kartu Keluarga</p>
-                <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{kkCount} KK</h3>
-              </div>
 
-              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 shadow-sm">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="p-3 bg-gray-100 text-[#444653] rounded-lg">
-                    <span className="material-symbols-outlined">event_note</span>
+                <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
+                      <span className="material-symbols-outlined">account_balance_wallet</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#444653]">KAS KELOLAAN</span>
                   </div>
-                  <span className="text-[10px] font-bold text-[#444653]">AKTIF</span>
+                  <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Saldo Kas RW</p>
+                  <h3 className="text-2xl font-bold text-[#1a1c1c] mt-1">Rp {saldoKas.toLocaleString('id-ID')}</h3>
                 </div>
-                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Kegiatan</p>
-                <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{kegiatanList.length} Agenda</h3>
               </div>
-
-              <div className="bg-white border border-[#e2e2e2] rounded-xl p-6 border-t-4 border-t-[#00216e] shadow-sm">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
-                    <span className="material-symbols-outlined">account_balance_wallet</span>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#444653]">KAS KELOLAAN</span>
-                </div>
-                <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Saldo Kas RW</p>
-                <h3 className="text-2xl font-bold text-[#1a1c1c] mt-1">Rp {saldoKas.toLocaleString('id-ID')}</h3>
-              </div>
-            </div>
-          )}
+            )}
           </section>
 
           {/* Data Warga Section */}
           <section id="data-warga" className="scroll-mt-20 space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-[#1a1c1c]">Data Demografi Warga</h2>
-                <p className="text-sm text-[#444653]">Demografi dan daftar penduduk lingkungan terdaftar.</p>
+                <h2 className="text-2xl font-bold text-[#1a1c1c]">Data Demografi Warga (PDP Compliant)</h2>
+                <p className="text-sm text-[#444653]">Demografi dan daftar nama terdaftar tanpa menyimpan NIK / data sensitif.</p>
               </div>
 
               {/* Search Input Field */}
@@ -375,39 +371,17 @@ export default function GuestPage() {
                   placeholder="Cari nama warga / RT..."
                   className="w-full pl-9 pr-4 py-2 bg-white border border-gray-300 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-[#00216e] outline-none shadow-sm"
                 />
-                {searchWargaQuery && (
-                  <button
-                    onClick={() => setSearchWargaQuery('')}
-                    className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                  >
-                    <span className="material-symbols-outlined text-sm">cancel</span>
-                  </button>
-                )}
               </div>
             </div>
 
             <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden shadow-sm">
-              <div className="p-6 border-b border-[#e2e2e2] flex justify-between items-center bg-gray-50">
-                <div className="flex gap-6">
-                  <div>
-                    <p className="text-2xl font-bold text-[#00216e]">{wargaCount} Jiwa</p>
-                    <p className="text-xs text-[#444653]">Total Terdata</p>
-                  </div>
-                  <div className="w-px bg-gray-300"></div>
-                  <div>
-                    <p className="text-2xl font-bold text-[#1a1c1c]">{kkCount} KK</p>
-                    <p className="text-xs text-[#444653]">Kepala Keluarga</p>
-                  </div>
-                </div>
-              </div>
-
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
                     <th className="px-6 py-4">Nama Warga</th>
-                    <th className="px-6 py-4">RT / RW</th>
-                    <th className="px-6 py-4">Peran KK</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Tahun Lahir</th>
+                    <th className="px-6 py-4">Estimasi Usia</th>
+                    <th className="px-6 py-4">Wilayah RT</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-sm">
@@ -416,120 +390,83 @@ export default function GuestPage() {
                       <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                         {searchWargaQuery
                           ? `Tidak ada warga yang cocok dengan kata kunci "${searchWargaQuery}"`
-                          : 'Belum ada data warga di database Supabase.'}
+                          : 'Belum ada data warga di database.'}
                       </td>
                     </tr>
                   ) : (
-                    filteredWargaDisplay.map((w: any, idx: number) => (
-                      <tr key={w.id || idx}>
-                        <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>
-                        <td className="px-6 py-4 text-xs">{w.rt} / {w.rw}</td>
-                        <td className="px-6 py-4 text-xs font-semibold text-purple-700">{w.peran_kk || w.peranKk || 'Kepala Keluarga'}</td>
-                        <td className="px-6 py-4">
-                          <span className="px-2.5 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">
-                            {w.status || 'Tetap'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                    filteredWargaDisplay.map((w: any, idx: number) => {
+                      const thn = Number(w.tahun_lahir || w.tahunLahir) || 1990;
+                      const usia = currentYear - thn;
+                      return (
+                        <tr key={w.id || idx}>
+                          <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>
+                          <td className="px-6 py-4 text-xs font-mono">{thn}</td>
+                          <td className="px-6 py-4 text-xs">
+                            <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] font-bold rounded">
+                              {usia} Tahun
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-semibold">{w.rt || 'RT 001'}</td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
           </section>
 
-          {/* Keuangan Section with Full History Table */}
+          {/* Keuangan Section */}
           <section id="keuangan" className="scroll-mt-20 space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-[#1a1c1c]">Transparansi &amp; Riwayat Keuangan</h2>
-              <p className="text-sm text-[#444653]">Laporan kas terbuka dan riwayat transaksi pemasukan/pengeluaran dana warga.</p>
+              <h2 className="text-2xl font-bold text-[#1a1c1c]">Transparansi Keuangan</h2>
+              <p className="text-sm text-[#444653]">Laporan kas terbuka dan riwayat transaksi dana warga.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-[#00216e] p-6 rounded-xl text-white shadow-lg">
-                <p className="text-xs uppercase tracking-widest opacity-80 font-bold">
-                  Saldo Kas Saat Ini
-                </p>
-                <h3 className="text-3xl font-extrabold mt-2">Rp {saldoKas.toLocaleString('id-ID')}</h3>
-              </div>
-            </div>
-
-            {/* Riwayat Transaksi Table for Guest */}
             <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden shadow-sm">
-              <div className="p-4 bg-gray-50 border-b font-bold text-[#00216e] text-sm flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-base">receipt_long</span>
-                  Riwayat Transaksi Keuangan Real-Time ({transaksiDisplayList.length} Catatan)
-                </span>
+              <div className="p-4 bg-gray-50 border-b font-bold text-[#00216e] text-sm">
+                Riwayat Transaksi Keuangan Real-Time
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
                       <th className="px-6 py-4">Tanggal</th>
-                      <th className="px-6 py-4">Keterangan Transaksi</th>
+                      <th className="px-6 py-4">Keterangan</th>
                       <th className="px-6 py-4">Kategori</th>
                       <th className="px-6 py-4 text-right">Jumlah (Rp)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 text-sm">
-                    {transaksiDisplayList.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
-                          Belum ada catatan riwayat transaksi di database.
+                    {transaksiDisplayList.map((t: any, idx: number) => (
+                      <tr key={t.id || idx}>
+                        <td className="px-6 py-4 font-mono text-xs text-gray-500 font-bold">{t.tanggal}</td>
+                        <td className="px-6 py-4 font-semibold text-[#1a1c1c]">{t.keterangan}</td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] text-xs font-bold rounded">
+                            {t.kategori}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right font-extrabold">
+                          <span className={t.jenis === 'pemasukan' ? 'text-[#00216e]' : 'text-[#bb0013]'}>
+                            {t.jenis === 'pemasukan' ? '+' : '-'} Rp {Number(t.jumlah).toLocaleString('id-ID')}
+                          </span>
                         </td>
                       </tr>
-                    ) : (
-                      transaksiDisplayList.map((t: any, idx: number) => (
-                        <tr key={t.id || idx} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 font-mono text-xs text-gray-500 font-bold">{t.tanggal}</td>
-                          <td className="px-6 py-4 font-semibold text-[#1a1c1c]">{t.keterangan}</td>
-                          <td className="px-6 py-4">
-                            <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] text-xs font-bold rounded">
-                              {t.kategori}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right font-extrabold">
-                            <span className={t.jenis === 'pemasukan' ? 'text-[#00216e]' : 'text-[#bb0013]'}>
-                              {t.jenis === 'pemasukan' ? '+' : '-'} Rp {Number(t.jumlah).toLocaleString('id-ID')}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           </section>
 
-          {/* Kegiatan Section */}
-          <section id="kegiatan" className="scroll-mt-20 space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold text-[#1a1c1c]">Kegiatan &amp; Agenda RW</h2>
-              <p className="text-sm text-[#444653]">Agenda dan aktivitas lingkungan mendatang.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {kegiatanList.map((keg: any, idx: number) => (
-                <div key={keg.id || idx} className="bg-white p-6 rounded-xl border border-[#e2e2e2] shadow-sm space-y-2">
-                  <span className="px-2 py-1 bg-blue-50 text-[#00216e] text-[10px] font-bold rounded uppercase">
-                    {keg.tanggal}
-                  </span>
-                  <h4 className="font-bold text-[#1a1c1c]">{keg.judul}</h4>
-                  <p className="text-xs text-[#444653]">{keg.lokasi}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Surat Pengantar Section with Form Trigger */}
-          <section id="surat-pengantar" className="scroll-mt-20 space-y-6">
+          {/* Antrian Pelayanan Section */}
+          <section id="antrian-pelayanan" className="scroll-mt-20 space-y-6">
             <div className="flex justify-between items-end">
               <div>
-                <h2 className="text-2xl font-bold text-[#1a1c1c]">Surat Pengantar Online</h2>
+                <h2 className="text-2xl font-bold text-[#1a1c1c]">Antrian Pelayanan Warga</h2>
                 <p className="text-sm text-[#444653]">
-                  Klik kategori di bawah atau tombol ajukan untuk mengirim permohonan surat pengantar RW.
+                  Daftar antrian permohonan dan layanan warga RW 09.
                 </p>
               </div>
 
@@ -537,50 +474,54 @@ export default function GuestPage() {
                 onClick={() => setIsModalOpen(true)}
                 className="bg-[#00216e] hover:bg-[#0033a0] text-white px-5 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shadow-md transition-all active:scale-95"
               >
-                <span className="material-symbols-outlined text-lg">add_notes</span>
-                Ajukan Surat Pengantar
+                <span className="material-symbols-outlined text-lg">add_card</span>
+                Daftar Antrian Baru
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div
-                onClick={() => openFormWithCategory('Surat Keterangan Domisili')}
-                className="bg-white border border-[#e2e2e2] p-6 rounded-xl border-l-4 border-l-[#00216e] hover:shadow-md cursor-pointer transition-all hover:scale-[1.01]"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-bold text-[#1a1c1c]">Domisili</h4>
-                  <span className="material-symbols-outlined text-[#00216e]">arrow_forward</span>
-                </div>
-                <p className="text-xs text-[#444653]">
-                  Pengantar keterangan tempat tinggal / domisili warga.
-                </p>
-              </div>
-
-              <div
-                onClick={() => openFormWithCategory('Surat Pengantar Pembuatan KTP/KK')}
-                className="bg-white border border-[#e2e2e2] p-6 rounded-xl border-l-4 border-l-[#00216e] hover:shadow-md cursor-pointer transition-all hover:scale-[1.01]"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-bold text-[#1a1c1c]">KTP / KK / Akta</h4>
-                  <span className="material-symbols-outlined text-[#00216e]">arrow_forward</span>
-                </div>
-                <p className="text-xs text-[#444653]">
-                  Pengantar pengurusan Kartu Keluarga atau Akta Kelahiran.
-                </p>
-              </div>
-
-              <div
-                onClick={() => openFormWithCategory('Surat Keterangan Kematian')}
-                className="bg-white border border-[#e2e2e2] p-6 rounded-xl border-l-4 border-l-[#bb0013] hover:shadow-md cursor-pointer transition-all hover:scale-[1.01]"
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-bold text-[#1a1c1c]">Kematian</h4>
-                  <span className="material-symbols-outlined text-[#bb0013]">arrow_forward</span>
-                </div>
-                <p className="text-xs text-[#444653]">
-                  Pengantar keterangan kematian &amp; pemakaman warga.
-                </p>
-              </div>
+            <div className="bg-white border border-[#e2e2e2] rounded-xl overflow-hidden shadow-sm">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
+                    <th className="px-6 py-4">No. Antrian</th>
+                    <th className="px-6 py-4">Nama Pemohon</th>
+                    <th className="px-6 py-4">RT</th>
+                    <th className="px-6 py-4">Keperluan</th>
+                    <th className="px-6 py-4">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 text-sm">
+                  {antrianDisplayList.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                        Belum ada data antrian pelayanan.
+                      </td>
+                    </tr>
+                  ) : (
+                    antrianDisplayList.map((a: any, idx: number) => (
+                      <tr key={a.id || idx}>
+                        <td className="px-6 py-4 font-mono font-bold text-[#00216e]">{a.no_antrian || a.noAntrian || 'A-001'}</td>
+                        <td className="px-6 py-4 font-bold text-[#1a1c1c]">{a.nama_pemohon || a.namaPemohon}</td>
+                        <td className="px-6 py-4 text-xs font-semibold">{a.rt || 'RT 001'}</td>
+                        <td className="px-6 py-4 text-xs text-[#444653]">{a.keperluan}</td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`px-2.5 py-1 text-xs font-bold rounded ${
+                              a.status === 'Selesai'
+                                ? 'bg-green-100 text-green-700'
+                                : a.status === 'Diproses'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {a.status || 'Menunggu'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
 
@@ -610,84 +551,65 @@ export default function GuestPage() {
         </footer>
       </main>
 
-      {/* Modal Pengajuan Surat untuk Guest/Warga */}
+      {/* Modal Form Antrian untuk Guest/Warga */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-lg font-bold text-[#00216e]">Form Pengajuan Surat Pengantar</h3>
+              <h3 className="text-lg font-bold text-[#00216e]">Form Pendaftaran Antrian Pelayanan</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <form onSubmit={handleGuestSubmitSurat} className="space-y-4">
+            <form onSubmit={handleGuestSubmitAntrian} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  Nama Pemohon (Warga)
+                  Nama Pemohon
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.namaPemohon}
                   onChange={(e) => setFormData({ ...formData, namaPemohon: e.target.value })}
-                  placeholder="Masukkan nama lengkap Anda"
+                  placeholder="Masukkan nama Anda"
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  NIK Pemohon (Persis 16 Digit Angka)
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={16}
-                  value={formData.nik}
-                  onChange={(e) => {
-                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 16);
-                    setFormData({ ...formData, nik: onlyNums });
-                  }}
-                  placeholder="Contoh: 3172010405780001"
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-mono"
-                />
-                {formData.nik.length > 0 && formData.nik.length < 16 && (
-                  <p className="text-[11px] text-red-500 font-semibold mt-1">
-                    NIK kurang {16 - formData.nik.length} digit (harus 16 digit angka).
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  Jenis Surat Pengantar
+                  Wilayah RT
                 </label>
                 <select
-                  value={formData.jenisSurat}
-                  onChange={(e) => setFormData({ ...formData, jenisSurat: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
+                  value={formData.rt}
+                  onChange={(e) => setFormData({ ...formData, rt: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-semibold"
                 >
-                  <option value="Surat Keterangan Domisili">Surat Keterangan Domisili</option>
-                  <option value="Surat Keterangan Usaha">Surat Keterangan Usaha</option>
-                  <option value="Surat Pengantar Pembuatan KTP/KK">Surat Pengantar Pembuatan KTP/KK</option>
-                  <option value="Surat Keterangan Tidak Mampu (SKTM)">Surat Keterangan Tidak Mampu (SKTM)</option>
-                  <option value="Surat Keterangan Kematian">Surat Keterangan Kematian</option>
+                  <option value="RT 001">RT 001</option>
+                  <option value="RT 002">RT 002</option>
+                  <option value="RT 003">RT 003</option>
+                  <option value="RT 004">RT 004</option>
+                  <option value="RT 005">RT 005</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  Keperluan Detail
+                  Keperluan Pelayanan
                 </label>
-                <textarea
-                  rows={3}
-                  required
+                <select
                   value={formData.keperluan}
                   onChange={(e) => setFormData({ ...formData, keperluan: e.target.value })}
-                  placeholder="Jelaskan keperluan pengajuan surat ini..."
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none"
-                />
+                >
+                  <option value="Pengurusan Surat Keterangan Domisili">Pengurusan Surat Keterangan Domisili</option>
+                  <option value="Pengurusan Surat Keterangan Usaha">Pengurusan Surat Keterangan Usaha</option>
+                  <option value="Pengurusan KTP / Kartu Keluarga">Pengurusan KTP / Kartu Keluarga</option>
+                  <option value="Pengurusan SKTM (Keterangan Tidak Mampu)">Pengurusan SKTM (Keterangan Tidak Mampu)</option>
+                  <option value="Pengurusan Surat Keterangan Kematian">Pengurusan Surat Keterangan Kematian</option>
+                  <option value="Konsultasi Pelayanan RW / RT">Konsultasi Pelayanan RW / RT</option>
+                </select>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
@@ -700,10 +622,10 @@ export default function GuestPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#00216e] text-[#ffffff] rounded-lg text-sm font-semibold hover:bg-[#0033a0] flex items-center gap-2"
+                  className="px-4 py-2 bg-[#00216e] text-white rounded-lg text-sm font-semibold hover:bg-[#0033a0] flex items-center gap-2"
                 >
                   <span className="material-symbols-outlined text-sm">send</span>
-                  Kirim Pengajuan
+                  Daftar Antrian
                 </button>
               </div>
             </form>

@@ -3,14 +3,8 @@ import { supabase, isSupabaseConfigured } from './supabase';
 export interface Warga {
   id: string;
   nama: string;
-  nik: string;
-  alamat: string;
+  tahunLahir: number;
   rt: string;
-  rw: string;
-  status: 'Tetap' | 'Kontrak';
-  statusKeluarga?: 'Kepala Keluarga' | 'Anggota Keluarga' | 'Ketua RT';
-  jenisKelamin: 'Laki-laki' | 'Perempuan';
-  usia: number;
 }
 
 export interface TransaksiKeuangan {
@@ -44,13 +38,12 @@ export interface Iuran {
 
 export interface SuratPengantar {
   id: string;
-  noSurat: string;
+  noAntrian: string;
   namaPemohon: string;
-  nik: string;
-  jenisSurat: string;
+  rt: string;
   keperluan: string;
   tanggal: string;
-  status: 'Selesai' | 'Diproses';
+  status: 'Menunggu' | 'Diproses' | 'Selesai' | 'Dibatalkan';
 }
 
 export interface Pengumuman {
@@ -63,11 +56,13 @@ export interface Pengumuman {
 }
 
 export const INITIAL_WARGA: Warga[] = [
-  { id: '1', nama: 'Agus Setiawan', nik: '3172010405780001', alamat: 'Jl. Bugis No. 42', rt: 'RT 004', rw: 'RW 009', status: 'Tetap', jenisKelamin: 'Laki-laki', usia: 45 },
-  { id: '2', nama: 'Siti Rahmawati', nik: '3172015208910003', alamat: 'Gang Remaja VII No. 12', rt: 'RT 001', rw: 'RW 009', status: 'Kontrak', jenisKelamin: 'Perempuan', usia: 32 },
-  { id: '3', nama: 'Bambang Pamungkas', nik: '3172012111650005', alamat: 'Jl. Kebon Bawang V No. 8', rt: 'RT 003', rw: 'RW 009', status: 'Tetap', jenisKelamin: 'Laki-laki', usia: 58 },
-  { id: '4', nama: 'Dewi Lestari', nik: '3172016612960002', alamat: 'Kost Cempaka Indah B-4', rt: 'RT 002', rw: 'RW 009', status: 'Kontrak', jenisKelamin: 'Perempuan', usia: 27 },
-  { id: '5', nama: 'Eko Prasetyo', nik: '3172011503840004', alamat: 'Jl. Bugis No. 51', rt: 'RT 004', rw: 'RW 009', status: 'Tetap', jenisKelamin: 'Laki-laki', usia: 39 },
+  { id: '1', nama: 'Agus Setiawan', tahunLahir: 1979, rt: 'RT 004' },
+  { id: '2', nama: 'Dewi Lestari', tahunLahir: 1982, rt: 'RT 004' },
+  { id: '3', nama: 'Siti Rahmawati', tahunLahir: 1992, rt: 'RT 001' },
+  { id: '4', nama: 'Bambang Pamungkas', tahunLahir: 1964, rt: 'RT 003' },
+  { id: '5', nama: 'Eko Prasetyo', tahunLahir: 1985, rt: 'RT 004' },
+  { id: '6', nama: 'Rifky Setiawan', tahunLahir: 2010, rt: 'RT 004' },
+  { id: '7', nama: 'Ananda Putri', tahunLahir: 2020, rt: 'RT 004' },
 ];
 
 export const INITIAL_KEUANGAN: TransaksiKeuangan[] = [
@@ -100,8 +95,9 @@ export const INITIAL_IURAN: Iuran[] = [
 ];
 
 export const INITIAL_SURAT: SuratPengantar[] = [
-  { id: '1', noSurat: '001/RW09/KB/X/2024', namaPemohon: 'Ananda Putri', nik: '3172015208910003', jenisSurat: 'Surat Keterangan Domisili', keperluan: 'Persyaratan Pembuatan KTP Baru', tanggal: '2024-10-12', status: 'Selesai' },
-  { id: '2', noSurat: '002/RW09/KB/X/2024', namaPemohon: 'Agus Setiawan', nik: '3172010405780001', jenisSurat: 'Surat Keterangan Usaha', keperluan: 'Pengajuan Pinjaman Bank KUR', tanggal: '2024-10-18', status: 'Selesai' },
+  { id: '1', noAntrian: 'A-001', namaPemohon: 'Ananda Putri', rt: 'RT 004', keperluan: 'Pengurusan Surat Keterangan Domisili', tanggal: '2024-10-12', status: 'Selesai' },
+  { id: '2', noAntrian: 'A-002', namaPemohon: 'Agus Setiawan', rt: 'RT 004', keperluan: 'Konsultasi Pengajuan Permohonan KTP Baru', tanggal: '2024-10-18', status: 'Diproses' },
+  { id: '3', noAntrian: 'A-003', namaPemohon: 'Siti Rahmawati', rt: 'RT 001', keperluan: 'Pengurusan SKTM (Surat Keterangan Tidak Mampu)', tanggal: '2024-10-20', status: 'Menunggu' },
 ];
 
 export const INITIAL_PENGUMUMAN: Pengumuman[] = [

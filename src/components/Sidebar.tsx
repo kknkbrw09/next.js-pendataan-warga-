@@ -36,7 +36,7 @@ export default function Sidebar() {
     { href: '/keuangan', label: 'Keuangan', icon: 'account_balance_wallet' },
     { href: '/kegiatan', label: 'Kegiatan', icon: 'event_available' },
     { href: '/iuran', label: 'Iuran', icon: 'payments' },
-    { href: '/surat', label: 'Surat Pengantar', icon: 'description' },
+    { href: '/surat', label: 'Antrian Pelayanan', icon: 'confirmation_number' },
     { href: '/pengumuman', label: 'Pengumuman', icon: 'campaign' },
     { href: '/config', label: 'Pengaturan', icon: 'settings' },
   ];

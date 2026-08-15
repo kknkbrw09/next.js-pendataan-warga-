@@ -388,10 +388,10 @@ export default function DashboardPage() {
             actList.push({
               id: 'surat-' + s.id,
               type: 'surat',
-              title: `${s.jenis_surat}: ${s.nama_pemohon}`,
-              time: `${s.tanggal || 'Terkini'} • ${s.status}`,
+              title: `Antrian ${s.no_antrian || 'Pelayanan'}: ${s.nama_pemohon}`,
+              time: `${s.tanggal || 'Terkini'} • ${s.status || 'Menunggu'}`,
               role: 'Sekretaris',
-              icon: 'edit_document',
+              icon: 'confirmation_number',
               colorBg: 'bg-indigo-50',
               colorText: 'text-[#012366]',
               sortTime: s.created_at || s.tanggal || '2024-10-01',

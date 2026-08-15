@@ -1,6 +1,5 @@
 export interface AppConfig {
-  // Surat Pengantar Config
-  suratPrefixFormat: string;
+  // General RW Info Config
   alamatSekretariat: string;
   namaKetuaRw: string;
   kotaAdmin: string;
@@ -27,7 +26,6 @@ export interface AppConfig {
 }
 
 export const DEFAULT_APP_CONFIG: AppConfig = {
-  suratPrefixFormat: 'Udn.SPC/RT/RW.09',
   alamatSekretariat: 'Jln. Swasembada Barat VI. No.39 Rt.016/09',
   namaKetuaRw: 'Bpk. Ketua RW 09',
   kotaAdmin: 'Jakarta Utara',
@@ -83,43 +81,6 @@ export function saveAppConfig(newConfig: Partial<AppConfig>): AppConfig {
     localStorage.setItem('rw09_app_config', JSON.stringify(updated));
   }
   return updated;
-}
-
-export function formatNoSurat(prefix: string, countNum: number = 1, dateObj: Date = new Date()): string {
-  const padCount = countNum.toString().padStart(3, '0');
-  const monthRom = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][
-    dateObj.getMonth()
-  ];
-  const year2 = dateObj.getFullYear().toString().slice(-2);
-  const cleanPrefix = prefix ? prefix.trim() : 'Udn.SPC/RT/RW.09';
-
-  if (/^\d{3}\//.test(cleanPrefix)) {
-    return cleanPrefix;
-  }
-
-  return `${padCount}/${cleanPrefix}/${monthRom}/${year2}`;
-}
-
-export function renderFormattedNoSurat(rawNoSurat: string, currentPrefix: string): string {
-  if (!rawNoSurat) return '';
-  const prefix = currentPrefix ? currentPrefix.trim() : 'Udn.SPC/RT/RW.09';
-
-  if (/^\d{3}\//.test(prefix)) {
-    return prefix;
-  }
-
-  const parts = rawNoSurat.split('/');
-
-  if (parts.length >= 4) {
-    const numPart = parts[0].padStart(3, '0');
-    const monthPart = parts[parts.length - 2];
-    let yearPart = parts[parts.length - 1];
-    if (yearPart.length === 4) yearPart = yearPart.slice(-2);
-
-    return `${numPart}/${prefix}/${monthPart}/${yearPart}`;
-  }
-
-  return rawNoSurat;
 }
 
 export function isKegiatanSelesai(tanggalStr: string, waktuStr: string = '23:59'): boolean {
