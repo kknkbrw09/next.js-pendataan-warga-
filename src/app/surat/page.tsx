@@ -43,7 +43,7 @@ export default function AntrianPelayananPage() {
 
           if (isMounted) {
             if (wargaData && wargaData.length > 0) {
-              setWargaList(wargaData.map((w: any) => ({ id: w.id, nama: w.nama, tahunLahir: w.tahun_lahir, rt: w.rt })));
+              setWargaList(wargaData.map((w: any) => ({ id: w.id, nama: w.nama, usia: Number(w.usia) || 30, rt: w.rt })));
             } else {
               setWargaList(INITIAL_WARGA);
             }
