@@ -372,7 +372,6 @@ export default function GuestPage() {
                 <thead>
                   <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
                     <th className="px-6 py-4">Nama Warga</th>
-                    <th className="px-6 py-4">Tahun Lahir</th>
                     <th className="px-6 py-4">Estimasi Usia</th>
                     <th className="px-6 py-4">Wilayah RT</th>
                   </tr>
@@ -380,7 +379,7 @@ export default function GuestPage() {
                 <tbody className="divide-y divide-gray-200 text-sm">
                   {filteredWargaDisplay.length === 0 ? (
                     <tr>
-                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
                         {searchWargaQuery
                           ? `Tidak ada warga yang cocok dengan kata kunci "${searchWargaQuery}"`
                           : 'Belum ada data warga di database.'}
@@ -393,7 +392,6 @@ export default function GuestPage() {
                       return (
                         <tr key={w.id || idx}>
                           <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>
-                          <td className="px-6 py-4 text-xs font-mono">{thn}</td>
                           <td className="px-6 py-4 text-xs">
                             <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] font-bold rounded">
                               {usia} Tahun

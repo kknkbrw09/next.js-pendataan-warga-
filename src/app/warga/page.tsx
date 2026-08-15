@@ -377,7 +377,6 @@ export default function WargaPage() {
                 <thead>
                   <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase tracking-wider">
                     <th className="px-6 py-4">Nama Lengkap</th>
-                    <th className="px-6 py-4">Tahun Lahir</th>
                     <th className="px-6 py-4">Estimasi Usia</th>
                     <th className="px-6 py-4">Wilayah RT</th>
                     <th className="px-6 py-4 text-center">Aksi</th>
@@ -386,13 +385,13 @@ export default function WargaPage() {
                 <tbody className="divide-y divide-gray-200 text-sm">
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-400 animate-pulse">
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-400 animate-pulse">
                         Memuat data warga...
                       </td>
                     </tr>
                   ) : filteredWarga.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
                         Tidak ada data warga yang cocok dengan kriteria pencarian/filter.
                       </td>
                     </tr>
@@ -414,10 +413,6 @@ export default function WargaPage() {
                               </div>
                               <span className="font-bold text-[#1a1c1c]">{warga.nama}</span>
                             </div>
-                          </td>
-
-                          <td className="px-6 py-4 font-mono text-sm text-[#444653]">
-                            {warga.tahunLahir}
                           </td>
 
                           <td className="px-6 py-4">
