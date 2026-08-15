@@ -33,7 +33,7 @@ export default function IuranPage() {
         try {
           setLoading(true);
           const { data, error } = await supabase.from('iuran').select('*');
-          if (data && !error && data.length > 0) {
+          if (data && !error) {
             const formatted: Iuran[] = data.map((d: any) => ({
               id: d.id,
               blok: d.blok,
@@ -45,30 +45,7 @@ export default function IuranPage() {
             }));
             setIuranList(formatted);
           } else {
-            console.log('[Supabase DB] 💡 Database iuran table is empty. Auto-seeding initial data...');
-            const seedItems = INITIAL_IURAN.map((item) => ({
-              blok: item.blok,
-              nama_warga: item.namaWarga,
-              bulan: currentBulanNow,
-              tahun: currentTahunNow,
-              status: item.status,
-              jumlah: item.jumlah,
-            }));
-            const { data: insertedData } = await supabase.from('iuran').insert(seedItems).select();
-            if (insertedData && insertedData.length > 0) {
-              const formatted: Iuran[] = insertedData.map((d: any) => ({
-                id: d.id,
-                blok: d.blok,
-                namaWarga: d.nama_warga,
-                bulan: d.bulan,
-                tahun: d.tahun,
-                status: d.status,
-                jumlah: Number(d.jumlah),
-              }));
-              setIuranList(formatted);
-            } else {
-              setIuranList(INITIAL_IURAN);
-            }
+            setIuranList(INITIAL_IURAN);
           }
         } catch (err) {
           console.log('Fetch iuran error', err);

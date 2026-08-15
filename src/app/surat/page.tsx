@@ -42,13 +42,13 @@ export default function AntrianPelayananPage() {
           const { data: wargaData } = await supabase.from('warga').select('*');
 
           if (isMounted) {
-            if (wargaData && wargaData.length > 0) {
+            if (wargaData) {
               setWargaList(wargaData.map((w: any) => ({ id: w.id, nama: w.nama, tahunLahir: Number(w.tahun_lahir) || 1990, rt: w.rt })));
             } else {
               setWargaList(INITIAL_WARGA);
             }
 
-            if (antrianData && !antrianErr && antrianData.length > 0) {
+            if (antrianData && !antrianErr) {
               const formatted: SuratPengantar[] = antrianData.map((d: any) => ({
                 id: d.id,
                 noAntrian: d.no_antrian || 'A-001',

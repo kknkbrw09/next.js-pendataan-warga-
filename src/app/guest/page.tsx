@@ -45,24 +45,24 @@ export default function GuestPage() {
 
           if (wargaData) {
             setWargaCount(wargaData.length);
-            setWargaDisplayList(wargaData.length > 0 ? wargaData : INITIAL_WARGA);
+            setWargaDisplayList(wargaData);
           }
 
           // Fetch Kegiatan
           const { data: kegData } = await supabase.from('kegiatan').select('*');
-          if (kegData && kegData.length > 0) {
+          if (kegData) {
             setKegiatanList(kegData);
           }
 
           // Fetch Pengumuman
           const { data: pengData } = await supabase.from('pengumuman').select('*');
-          if (pengData && pengData.length > 0) {
+          if (pengData) {
             setPengumumanList(pengData);
           }
 
           // Fetch Keuangan
           const { data: keuData } = await supabase.from('keuangan').select('*').order('tanggal', { ascending: false });
-          if (keuData && keuData.length > 0) {
+          if (keuData) {
             setTransaksiDisplayList(keuData);
             const pem = keuData.filter((k: any) => k.jenis === 'pemasukan').reduce((a: number, b: any) => a + Number(b.jumlah), 0);
             const peng = keuData.filter((k: any) => k.jenis === 'pengeluaran').reduce((a: number, b: any) => a + Number(b.jumlah), 0);

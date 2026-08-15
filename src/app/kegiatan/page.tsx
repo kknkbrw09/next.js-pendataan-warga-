@@ -46,7 +46,7 @@ export default function KegiatanPage() {
             console.log(`[Supabase DB] ✅ Kegiatan returned ${data?.length || 0} rows:`, data);
           }
 
-          if (data && !error && data.length > 0) {
+          if (data && !error) {
             const formatted: Kegiatan[] = data.map((d: any) => ({
               id: d.id,
               judul: d.judul,

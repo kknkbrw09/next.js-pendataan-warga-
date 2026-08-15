@@ -43,7 +43,7 @@ export default function WargaPage() {
           setLoading(true);
           const { data, error } = await supabase.from('warga').select('*').order('created_at', { ascending: false });
           if (isMounted) {
-            if (data && !error && data.length > 0) {
+            if (data && !error) {
               const mapped: Warga[] = data.map((d: any) => ({
                 id: d.id,
                 nama: d.nama,

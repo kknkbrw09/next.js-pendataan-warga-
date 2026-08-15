@@ -228,44 +228,26 @@ export default function DashboardPage() {
 
         // 1. Process Warga Data
         setRawWargaList(wargaData || []);
-        const totalWargaCount = wargaData.length > 0 ? wargaData.length : INITIAL_WARGA.length;
+        const totalWargaCount = wargaData ? wargaData.length : 0;
 
         // 2. Process Keuangan Data
         setRawKeuanganList(keuanganData || []);
-        let totalIncome = 0;
-        let totalExpense = 0;
-
-        if (keuanganData.length > 0) {
-          totalIncome = keuanganData
-            .filter((k: any) => k.jenis === 'pemasukan')
-            .reduce((sum: number, k: any) => sum + Number(k.jumlah || 0), 0);
-          totalExpense = keuanganData
-            .filter((k: any) => k.jenis === 'pengeluaran')
-            .reduce((sum: number, k: any) => sum + Number(k.jumlah || 0), 0);
-        } else {
-          totalIncome = INITIAL_KEUANGAN.filter((k) => k.jenis === 'pemasukan').reduce(
-            (sum, k) => sum + k.jumlah,
-            0
-          );
-          totalExpense = INITIAL_KEUANGAN.filter((k) => k.jenis === 'pengeluaran').reduce(
-            (sum, k) => sum + k.jumlah,
-            0
-          );
-        }
+        const totalIncome = (keuanganData || [])
+          .filter((k: any) => k.jenis === 'pemasukan')
+          .reduce((sum: number, k: any) => sum + Number(k.jumlah || 0), 0);
+        const totalExpense = (keuanganData || [])
+          .filter((k: any) => k.jenis === 'pengeluaran')
+          .reduce((sum: number, k: any) => sum + Number(k.jumlah || 0), 0);
 
         // 3. Process Kegiatan Data
         setRawKegiatanList(kegiatanData || []);
-        const totalKegiatanCount = kegiatanData.length > 0 ? kegiatanData.length : INITIAL_KEGIATAN.length;
-        const mendatangKegiatanCount = kegiatanData.length > 0
-          ? kegiatanData.filter((k: any) => !isKegiatanSelesai(k.tanggal, k.waktu) && k.status !== 'Selesai').length
-          : INITIAL_KEGIATAN.filter((k) => !isKegiatanSelesai(k.tanggal, k.waktu) && k.status !== 'Selesai').length;
+        const totalKegiatanCount = kegiatanData ? kegiatanData.length : 0;
+        const mendatangKegiatanCount = (kegiatanData || []).filter((k: any) => !isKegiatanSelesai(k.tanggal, k.waktu) && k.status !== 'Selesai').length;
 
         // 4. Process Iuran Data
-        const totalIuranCount = iuranData.length > 0 ? iuranData.length : INITIAL_IURAN.length;
-        const lunasCount = iuranData.length > 0
-          ? iuranData.filter((i: any) => i.status === 'Lunas').length
-          : INITIAL_IURAN.filter((i) => i.status === 'Lunas').length;
-        const pctIuran = totalIuranCount > 0 ? Math.round((lunasCount / totalIuranCount) * 100) : 85;
+        const totalIuranCount = iuranData ? iuranData.length : 0;
+        const lunasCount = (iuranData || []).filter((i: any) => i.status === 'Lunas').length;
+        const pctIuran = totalIuranCount > 0 ? Math.round((lunasCount / totalIuranCount) * 100) : 0;
 
         setStats({
           totalWarga: totalWargaCount,
@@ -275,7 +257,7 @@ export default function DashboardPage() {
           kegiatanMendatang: mendatangKegiatanCount,
           persentaseIuran: pctIuran,
           iuranLunasCount: lunasCount,
-          iuranBelumCount: totalIuranCount - lunasCount,
+          iuranBelumCount: Math.max(0, totalIuranCount - lunasCount),
         });
 
         // 5. Build Dynamic Keuangan Chart from DB transactions
@@ -292,11 +274,7 @@ export default function DashboardPage() {
           });
         }
 
-        const sourceKeuanganList = keuanganData.length > 0 ? keuanganData : INITIAL_KEUANGAN.map((k) => ({
-          jenis: k.jenis,
-          jumlah: k.jumlah,
-          tanggal: k.tanggal,
-        }));
+        const sourceKeuanganList = keuanganData || [];
 
         const mChartData = last5Months.map((m) => {
           let rawInc = 0;

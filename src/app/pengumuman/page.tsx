@@ -33,7 +33,7 @@ export default function PengumumanPage() {
           const { data, error } = await supabase.from('pengumuman').select('*');
 
           if (isMounted) {
-            if (data && !error && data.length > 0) {
+            if (data && !error) {
               const formatted: Pengumuman[] = data.map((d: any) => ({
                 id: d.id,
                 judul: d.judul,

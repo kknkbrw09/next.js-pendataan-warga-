@@ -43,7 +43,7 @@ export default function KeuanganPage() {
             .order('tanggal', { ascending: false });
 
           if (isMounted) {
-            if (data && !error && data.length > 0) {
+            if (data && !error) {
               const formatted: TransaksiKeuangan[] = data.map((d: any) => ({
                 id: d.id,
                 tanggal: d.tanggal,
