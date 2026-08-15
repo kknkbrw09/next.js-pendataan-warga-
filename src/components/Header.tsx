@@ -29,10 +29,12 @@ export default function Header({ title, onSearch }: HeaderProps) {
           const { data, error } = await supabase
             .from('surat_pengantar')
             .select('*')
+            .neq('status', 'Selesai')
+            .neq('status', 'Dibatalkan')
             .order('created_at', { ascending: false })
             .limit(5);
 
-          if (data && !error && data.length > 0) {
+          if (data && !error) {
             const mapped: SuratPengantar[] = data.map((d: any) => ({
               id: d.id,
               noAntrian: d.no_antrian || 'A-001',
@@ -49,10 +51,15 @@ export default function Header({ title, onSearch }: HeaderProps) {
           console.log('Error fetching antrian notifications', err);
         }
       }
-      setNotifications(INITIAL_SURAT);
+      setNotifications(INITIAL_SURAT.filter((item) => item.status !== 'Selesai' && item.status !== 'Dibatalkan'));
     }
 
     fetchSuratNotifs();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('antrian_updated', fetchSuratNotifs);
+      return () => window.removeEventListener('antrian_updated', fetchSuratNotifs);
+    }
   }, []);
 
   // Close dropdown when clicking outside

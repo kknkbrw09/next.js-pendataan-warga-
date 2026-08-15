@@ -145,6 +145,9 @@ export default function AntrianPelayananPage() {
     setAntrianList([newAntrian, ...antrianList]);
     setIsModalOpen(false);
     showToast(`Antrian ${noAntrian} Berhasil Didaftarkan!`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('antrian_updated'));
+    }
     setFormData({
       namaPemohon: '',
       rt: 'RT 001',
@@ -168,6 +171,9 @@ export default function AntrianPelayananPage() {
       prev.map((item) => (item.id === id ? { ...item, status: newStatus } : item))
     );
     showToast(`Status Antrian Diubah ke '${newStatus}'`);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('antrian_updated'));
+    }
   };
 
   const activeAntrian = antrianList.find((a) => a.status === 'Diproses') || antrianList.find((a) => a.status === 'Menunggu');
