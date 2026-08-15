@@ -830,13 +830,7 @@ export default function DashboardPage() {
                   </div>
 
                   {(() => {
-                    const sourceWarga =
-                      rawWargaList.length > 0
-                        ? rawWargaList
-                        : INITIAL_WARGA.map((w, idx) => ({
-                            ...w,
-                            created_at: `202${4 + (idx % 3)}-0${(idx % 9) + 1}-15T10:00:00Z`,
-                          }));
+                    const sourceWarga = rawWargaList || [];
 
                     const realNow = new Date();
                     const realYear = realNow.getFullYear();
@@ -889,7 +883,7 @@ export default function DashboardPage() {
                       <div className="h-60 flex items-end justify-between px-2 gap-1.5 border-b border-gray-100 relative">
                         {displayLabels.map((lbl, idx) => {
                           const val = growthValues[idx] || 0;
-                          const heightPct = Math.max(Math.round((val / maxWargaVal) * 85), 15);
+                          const heightPct = val > 0 ? Math.max(Math.round((val / maxWargaVal) * 85), 10) : 4;
 
                           let isCurrentPeriod = false;
                           let isFuturePeriod = false;
@@ -965,13 +959,7 @@ export default function DashboardPage() {
                     const currentYear = realNow.getFullYear();
                     const currentMonthIdx = realNow.getMonth(); // 7 for August
 
-                    const sourceKegiatan =
-                      rawKegiatanList.length > 0
-                        ? rawKegiatanList
-                        : INITIAL_KEGIATAN.map((k, idx) => ({
-                            judul: k.judul,
-                            tanggal: k.tanggal || `2026-0${(idx % 9) + 1}-15`,
-                          }));
+                    const sourceKegiatan = rawKegiatanList || [];
 
                     const monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGS', 'SEP', 'OKT', 'NOV', 'DES'];
 
@@ -1001,7 +989,7 @@ export default function DashboardPage() {
                         <div className="h-60 flex items-end justify-between px-2 gap-1.5 border-b border-gray-100 relative">
                           {monthLabels.map((lbl, idx) => {
                             const count = monthCounts[idx];
-                            const heightPct = count > 0 ? Math.max(Math.round((count / maxCount) * 85), 15) : 8;
+                            const heightPct = count > 0 ? Math.max(Math.round((count / maxCount) * 85), 10) : 4;
                             const isCurrentMonth = idx === currentMonthIdx;
                             const isFutureMonth = idx > currentMonthIdx;
 
