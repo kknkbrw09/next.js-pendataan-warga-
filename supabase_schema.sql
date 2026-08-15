@@ -29,11 +29,11 @@ CREATE TABLE public.admin_users (
 INSERT INTO public.admin_users (username, password, nama_admin) VALUES
 ('admin', '40ab988f0f4de47d2a8b6422d1aa87598f23d9bc475519e4db5a9b9a2221d2e8', 'Pengurus RW 09');
 
--- 1. TABEL WARGA (Hanya Nama, Usia, RT)
+-- 1. TABEL WARGA (Hanya Nama, Tahun Lahir, RT)
 CREATE TABLE public.warga (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nama TEXT NOT NULL,
-  usia INT NOT NULL,
+  tahun_lahir INT NOT NULL,
   rt VARCHAR(10) NOT NULL DEFAULT 'RT 001',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -96,15 +96,15 @@ CREATE TABLE public.pengumuman (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- SEED DATA MOCK WARGA (MINIMAL DATA: NAMA, USIA, RT)
-INSERT INTO public.warga (nama, usia, rt) VALUES
-('Agus Setiawan', 47, 'RT 004'),
-('Dewi Lestari', 44, 'RT 004'),
-('Rifky Setiawan', 16, 'RT 004'),
-('Ananda Putri', 6, 'RT 004'),
-('Siti Rahmawati', 34, 'RT 001'),
-('Bambang Pamungkas', 62, 'RT 003'),
-('Eko Prasetyo', 41, 'RT 004');
+-- SEED DATA MOCK WARGA (MINIMAL DATA: NAMA, TAHUN LAHIR, RT)
+INSERT INTO public.warga (nama, tahun_lahir, rt) VALUES
+('Agus Setiawan', 1979, 'RT 004'),
+('Dewi Lestari', 1982, 'RT 004'),
+('Rifky Setiawan', 2010, 'RT 004'),
+('Ananda Putri', 2020, 'RT 004'),
+('Siti Rahmawati', 1992, 'RT 001'),
+('Bambang Pamungkas', 1964, 'RT 003'),
+('Eko Prasetyo', 1985, 'RT 004');
 
 -- SEED DATA MOCK ANTRIAN PELAYANAN
 INSERT INTO public.surat_pengantar (no_antrian, nama_pemohon, rt, keperluan, status) VALUES

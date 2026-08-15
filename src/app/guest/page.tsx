@@ -38,10 +38,10 @@ export default function GuestPage() {
       if (isSupabaseConfigured && supabase) {
         try {
           setLoading(true);
-          // Fetch Warga (id, nama, usia, rt)
+          // Fetch Warga (id, nama, tahun_lahir, rt)
           const { data: wargaData } = await supabase
             .from('warga')
-            .select('id, nama, usia, rt');
+            .select('id, nama, tahun_lahir, rt');
 
           if (wargaData) {
             setWargaCount(wargaData.length);
@@ -387,7 +387,8 @@ export default function GuestPage() {
                     </tr>
                   ) : (
                     filteredWargaDisplay.map((w: any, idx: number) => {
-                      const usia = Number(w.usia) || 30;
+                      const thn = Number(w.tahun_lahir || w.tahunLahir) || 1990;
+                      const usia = currentYear - thn;
                       return (
                         <tr key={w.id || idx}>
                           <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>

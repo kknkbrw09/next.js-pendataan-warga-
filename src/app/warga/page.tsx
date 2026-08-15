@@ -26,7 +26,7 @@ export default function WargaPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Form State (Input menggunakan Tahun Lahir)
+  // Form State (Input & simpan ke DB menggunakan Tahun Lahir)
   const [formData, setFormData] = useState({
     nama: '',
     tahunLahir: 1990,
@@ -47,7 +47,7 @@ export default function WargaPage() {
               const mapped: Warga[] = data.map((d: any) => ({
                 id: d.id,
                 nama: d.nama,
-                usia: Number(d.usia) || 30,
+                tahunLahir: Number(d.tahun_lahir) || 1990,
                 rt: d.rt || 'RT 001',
               }));
               setWargaList(mapped);
@@ -86,7 +86,7 @@ export default function WargaPage() {
       setEditingWarga(warga);
       setFormData({
         nama: warga.nama,
-        tahunLahir: currentYear - warga.usia,
+        tahunLahir: warga.tahunLahir,
         rt: warga.rt,
       });
     } else {
@@ -113,11 +113,9 @@ export default function WargaPage() {
       return;
     }
 
-    // Kalkulasi Usia dari Tahun Lahir yang diinput
-    const calculatedUsia = currentYear - formData.tahunLahir;
     let insertedId = Date.now().toString();
 
-    // Save to Supabase (Hanya menyimpan nama, usia, rt)
+    // Save to Supabase (Menyimpan nama, tahun_lahir, rt ke DB)
     if (isSupabaseConfigured && supabase) {
       try {
         if (editingWarga) {
@@ -125,7 +123,7 @@ export default function WargaPage() {
             .from('warga')
             .update({
               nama: formData.nama,
-              usia: calculatedUsia,
+              tahun_lahir: formData.tahunLahir,
               rt: formData.rt,
             })
             .eq('id', editingWarga.id);
@@ -134,7 +132,7 @@ export default function WargaPage() {
             .from('warga')
             .insert({
               nama: formData.nama,
-              usia: calculatedUsia,
+              tahun_lahir: formData.tahunLahir,
               rt: formData.rt,
             })
             .select('*');
@@ -150,13 +148,13 @@ export default function WargaPage() {
 
     if (editingWarga) {
       setWargaList((prev) =>
-        prev.map((w) => (w.id === editingWarga.id ? { id: w.id, nama: formData.nama, usia: calculatedUsia, rt: formData.rt } : w))
+        prev.map((w) => (w.id === editingWarga.id ? { id: w.id, nama: formData.nama, tahunLahir: formData.tahunLahir, rt: formData.rt } : w))
       );
     } else {
       const newWarga: Warga = {
         id: insertedId,
         nama: formData.nama,
-        usia: calculatedUsia,
+        tahunLahir: formData.tahunLahir,
         rt: formData.rt,
       };
       setWargaList((prev) => [newWarga, ...prev]);
@@ -184,18 +182,19 @@ export default function WargaPage() {
     const exportData = filteredWarga.map((w, idx) => ({
       No: idx + 1,
       'Nama Lengkap': w.nama,
-      Usia: `${w.usia} Thn`,
+      'Tahun Lahir': w.tahunLahir,
+      Usia: `${currentYear - w.tahunLahir} Thn`,
       RT: w.rt,
     }));
     downloadCsv('Data_Warga_RW09', exportData);
     showToast('File Data Warga (CSV) Berhasil Diunduh!');
   };
 
-  // Filtered List
+  // Filtered List & Age Calculation (Tahun Sekarang - Tahun Lahir)
   const filteredWarga = wargaList.filter((w) => {
     const matchesSearch = w.nama.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRt = selectedRt === 'Semua RT' || w.rt === selectedRt;
-    const usia = w.usia;
+    const usia = currentYear - w.tahunLahir;
 
     let matchesUsia = true;
     if (selectedUsia === 'Balita (< 5 Thn)') {
@@ -289,7 +288,10 @@ export default function WargaPage() {
                     <div>
                       <p className="text-xs text-[#444653] font-semibold mb-1">Usia Produktif (18-59)</p>
                       <h3 className="text-2xl font-bold text-indigo-700">
-                        {wargaList.filter((w) => w.usia >= 18 && w.usia <= 59).length} Jiwa
+                        {wargaList.filter((w) => {
+                          const usia = currentYear - w.tahunLahir;
+                          return usia >= 18 && usia <= 59;
+                        }).length} Jiwa
                       </h3>
                     </div>
                     <span className="material-symbols-outlined p-2.5 bg-indigo-100 text-indigo-700 rounded-lg">
@@ -304,7 +306,7 @@ export default function WargaPage() {
                     <div>
                       <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Lansia (60+)</p>
                       <h3 className="text-2xl font-bold text-[#012366]">
-                        {wargaList.filter((w) => w.usia >= 60).length} Jiwa
+                        {wargaList.filter((w) => currentYear - w.tahunLahir >= 60).length} Jiwa
                       </h3>
                     </div>
                     <span className="material-symbols-outlined p-2.5 bg-blue-100 text-[#012366] rounded-lg">
@@ -319,7 +321,7 @@ export default function WargaPage() {
                     <div>
                       <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Balita (&lt;5)</p>
                       <h3 className="text-2xl font-bold text-amber-700">
-                        {wargaList.filter((w) => w.usia < 5).length} Balita
+                        {wargaList.filter((w) => currentYear - w.tahunLahir < 5).length} Balita
                       </h3>
                     </div>
                     <span className="material-symbols-outlined p-2.5 bg-amber-100 text-amber-700 rounded-lg">
@@ -368,7 +370,7 @@ export default function WargaPage() {
               </div>
             </div>
 
-            {/* Table */}
+            {/* Table (Hanya Menampilkan Usia: Tahun Sekarang - Tahun Lahir) */}
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -399,6 +401,7 @@ export default function WargaPage() {
                         .map((n) => n[0])
                         .slice(0, 2)
                         .join('');
+                      const calculatedUsia = currentYear - warga.tahunLahir;
 
                       return (
                         <tr key={warga.id} className="hover:bg-blue-50/40 transition-colors">
@@ -413,7 +416,7 @@ export default function WargaPage() {
 
                           <td className="px-6 py-4">
                             <span className="px-3 py-1 bg-blue-50 text-[#00216e] rounded-full text-xs font-bold border border-blue-200">
-                              {warga.usia} Tahun
+                              {calculatedUsia} Tahun
                             </span>
                           </td>
 
@@ -482,7 +485,7 @@ export default function WargaPage() {
 
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
-                  Tahun Lahir (Untuk Kalkulasi Usia)
+                  Tahun Lahir
                 </label>
                 <input
                   type="number"
@@ -495,7 +498,7 @@ export default function WargaPage() {
                   className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-mono"
                 />
                 <p className="text-[11px] text-gray-500 mt-1">
-                  Usia yang disimpan di DB: <strong>{currentYear - (formData.tahunLahir || currentYear)} Tahun</strong>
+                  Estimasi Usia: <strong>{currentYear - (formData.tahunLahir || currentYear)} Tahun</strong>
                 </p>
               </div>
 

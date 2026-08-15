@@ -3,7 +3,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 export interface Warga {
   id: string;
   nama: string;
-  usia: number;
+  tahunLahir: number;
   rt: string;
 }
 
@@ -56,13 +56,13 @@ export interface Pengumuman {
 }
 
 export const INITIAL_WARGA: Warga[] = [
-  { id: '1', nama: 'Agus Setiawan', usia: 47, rt: 'RT 004' },
-  { id: '2', nama: 'Dewi Lestari', usia: 44, rt: 'RT 004' },
-  { id: '3', nama: 'Siti Rahmawati', usia: 34, rt: 'RT 001' },
-  { id: '4', nama: 'Bambang Pamungkas', usia: 62, rt: 'RT 003' },
-  { id: '5', nama: 'Eko Prasetyo', usia: 41, rt: 'RT 004' },
-  { id: '6', nama: 'Rifky Setiawan', usia: 16, rt: 'RT 004' },
-  { id: '7', nama: 'Ananda Putri', usia: 6, rt: 'RT 004' },
+  { id: '1', nama: 'Agus Setiawan', tahunLahir: 1979, rt: 'RT 004' },
+  { id: '2', nama: 'Dewi Lestari', tahunLahir: 1982, rt: 'RT 004' },
+  { id: '3', nama: 'Siti Rahmawati', tahunLahir: 1992, rt: 'RT 001' },
+  { id: '4', nama: 'Bambang Pamungkas', tahunLahir: 1964, rt: 'RT 003' },
+  { id: '5', nama: 'Eko Prasetyo', tahunLahir: 1985, rt: 'RT 004' },
+  { id: '6', nama: 'Rifky Setiawan', tahunLahir: 2010, rt: 'RT 004' },
+  { id: '7', nama: 'Ananda Putri', tahunLahir: 2020, rt: 'RT 004' },
 ];
 
 export const INITIAL_KEUANGAN: TransaksiKeuangan[] = [

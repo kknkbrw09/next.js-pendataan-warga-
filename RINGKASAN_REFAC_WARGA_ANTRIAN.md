@@ -17,12 +17,14 @@ Sesuai dengan prinsip *Data Minimization* UU Perlindungan Data Pribadi (UU PDP N
 * **Skema Data Database ([`supabase_schema.sql`](file:///c:/Users/mjibr/.gemini/antigravity/scratch/portal-rw09/supabase_schema.sql)):**
   Tabel `public.warga` disederhanakan hanya menyimpan 3 atribut non-sensitif:
   1. `nama` (Nama Lengkap Warga)
-  2. `usia` (Usia Warga dalam Tahun)
+  2. `tahun_lahir` (Tahun Lahir Warga, e.g. 1990)
   3. `rt` (Nomor RT, e.g. "RT 001")
 
-* **Modal Form Input ([`warga/page.tsx`](file:///c:/Users/mjibr/.gemini/antigravity/scratch/portal-rw09/src/app/warga/page.tsx)):**
-  - Form modal tambah/edit warga tetap menggunakan input **Tahun Lahir** (misal: `1995`) untuk memudahkan pengguna.
-  - Aplikasi secara otomatis mengkalkulasi `Usia = Tahun Sekarang - Tahun Lahir` sebelum menyimpan atribut `usia` ke Supabase / Store.
+* **Kalkulasi Usia di Frontend (FE):**
+  - Database **hanya menyimpan `tahun_lahir`** (misal `1995`).
+  - Saat data dipanggil di Frontend, usia dihitung secara dinamis:  
+    $$\text{Usia} = \text{Tahun Sekarang} - \text{Tahun Lahir}$$
+  - Tabel UI hanya menampilkan **Nama Lengkap**, **Estimasi Usia** *(misal: 31 Tahun)*, **Wilayah RT**, dan **Aksi**.
 
 * **Pembersihan Data Sensitif (PII):**
   Dihapus total dari Database SQL, Store TypeScript ([`store.ts`](file:///c:/Users/mjibr/.gemini/antigravity/scratch/portal-rw09/src/lib/store.ts)), dan Antarmuka UI:
@@ -32,9 +34,6 @@ Sesuai dengan prinsip *Data Minimization* UU Perlindungan Data Pribadi (UU PDP N
   - ❌ Jenis Kelamin
   - ❌ Status Tempat Tinggal (Tetap / Kontrak)
   - ❌ Hubungan & Peran Keluarga
-
-* **Tampilan Tabel UI ([`warga/page.tsx`](file:///c:/Users/mjibr/.gemini/antigravity/scratch/portal-rw09/src/app/warga/page.tsx) & [`guest/page.tsx`](file:///c:/Users/mjibr/.gemini/antigravity/scratch/portal-rw09/src/app/guest/page.tsx)):**
-  - Tabel menampilkan: **Nama Lengkap**, **Usia** *(e.g. 30 Tahun)*, **Wilayah RT**, dan **Aksi**.
 
 ---
 
