@@ -216,9 +216,9 @@ export default function GuestPage() {
               <p className="text-xs text-white/60">Guest Access</p>
             </div>
           </div>
-          <div className="mt-3 px-3 py-1 bg-emerald-700 text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
-            Akses Warga / PDP Safe
+          <div className="mt-3 px-3 py-1 bg-blue-700 text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse"></span>
+            Akses Warga / Tamu
           </div>
         </div>
 
@@ -261,13 +261,6 @@ export default function GuestPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full">
-              <span className="material-symbols-outlined text-emerald-700 text-lg">verified_user</span>
-              <p className="text-xs font-bold text-emerald-800">
-                Terlindungi UU PDP
-              </p>
-            </div>
-
             <button
               onClick={handleLogout}
               className="bg-[#bb0013] hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
@@ -320,7 +313,7 @@ export default function GuestPage() {
                     <div className="p-3 bg-[#00216e]/10 text-[#00216e] rounded-lg">
                       <span className="material-symbols-outlined">groups</span>
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">PDP SAFE</span>
+                    <span className="text-[10px] font-bold text-[#444653]">LIVE DB</span>
                   </div>
                   <p className="text-xs text-[#444653] font-semibold uppercase tracking-wider">Total Warga</p>
                   <h3 className="text-3xl font-bold text-[#1a1c1c] mt-1">{wargaCount} Jiwa</h3>
@@ -355,8 +348,8 @@ export default function GuestPage() {
           <section id="data-warga" className="scroll-mt-20 space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
               <div>
-                <h2 className="text-2xl font-bold text-[#1a1c1c]">Data Demografi Warga (PDP Compliant)</h2>
-                <p className="text-sm text-[#444653]">Demografi dan daftar nama terdaftar tanpa menyimpan NIK / data sensitif.</p>
+                <h2 className="text-2xl font-bold text-[#1a1c1c]">Data Demografi Warga</h2>
+                <p className="text-sm text-[#444653]">Demografi dan daftar nama warga terdaftar.</p>
               </div>
 
               {/* Search Input Field */}

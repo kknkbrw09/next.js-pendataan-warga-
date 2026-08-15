@@ -222,20 +222,15 @@ export default function WargaPage() {
       <Sidebar />
 
       <main className="ml-[280px] w-[calc(100%-280px)] min-h-screen flex flex-col">
-        <Header title="Manajemen Data Warga (PDP Compliant)" onSearch={setSearchQuery} />
+        <Header title="Manajemen Data Warga" onSearch={setSearchQuery} />
 
         <div className="flex-1 p-8 space-y-8 overflow-y-auto">
           {/* Header Action Section */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-bold text-[#00216e]">Data Warga Minimalis</h2>
-                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-full flex items-center gap-1 border border-emerald-300">
-                  <span className="material-symbols-outlined text-xs">verified_user</span> Patuh UU PDP 2022
-                </span>
-              </div>
+              <h2 className="text-2xl font-bold text-[#00216e]">Data Warga Minimalis</h2>
               <p className="text-sm text-[#444653] mt-1">
-                Data terenkapsulasi tanpa menyimpan NIK, Alamat Detail, atau PII Sensitif.
+                Kelola data kependudukan warga RW 09 Kebon Bawang.
               </p>
             </div>
 
@@ -284,9 +279,8 @@ export default function WargaPage() {
                       groups
                     </span>
                   </div>
-                  <p className="text-xs text-green-700 font-semibold mt-3 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-sm">shield</span>
-                    Bebas Risik Data Sensitif
+                  <p className="text-xs text-gray-500 font-medium mt-3">
+                    Terdaftar di RW 09
                   </p>
                 </div>
 
