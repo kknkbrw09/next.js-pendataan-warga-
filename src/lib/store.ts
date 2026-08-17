@@ -1,10 +1,18 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 
+export type StatusKeluarga = 'Kepala Keluarga' | 'Suami' | 'Istri' | 'Anak' | 'Cucu' | 'Lainnya';
+export type Gender = 'Laki-laki' | 'Perempuan';
+
 export interface Warga {
   id: string;
   nama: string;
+  statusKeluarga: StatusKeluarga;
+  kepalaKeluargaId?: string;
+  kepalaKeluargaNama?: string;
+  gender: Gender;
   tahunLahir: number;
   rt: string;
+  nomorRumah: string;
 }
 
 export interface TransaksiKeuangan {
@@ -56,13 +64,13 @@ export interface Pengumuman {
 }
 
 export const INITIAL_WARGA: Warga[] = [
-  { id: '1', nama: 'Agus Setiawan', tahunLahir: 1979, rt: 'RT 004' },
-  { id: '2', nama: 'Dewi Lestari', tahunLahir: 1982, rt: 'RT 004' },
-  { id: '3', nama: 'Siti Rahmawati', tahunLahir: 1992, rt: 'RT 001' },
-  { id: '4', nama: 'Bambang Pamungkas', tahunLahir: 1964, rt: 'RT 003' },
-  { id: '5', nama: 'Eko Prasetyo', tahunLahir: 1985, rt: 'RT 004' },
-  { id: '6', nama: 'Rifky Setiawan', tahunLahir: 2010, rt: 'RT 004' },
-  { id: '7', nama: 'Ananda Putri', tahunLahir: 2020, rt: 'RT 004' },
+  { id: '1', nama: 'Agus Setiawan', statusKeluarga: 'Kepala Keluarga', gender: 'Laki-laki', tahunLahir: 1979, rt: 'RT 004', nomorRumah: 'No. 12' },
+  { id: '2', nama: 'Dewi Lestari', statusKeluarga: 'Istri', kepalaKeluargaId: '1', kepalaKeluargaNama: 'Agus Setiawan', gender: 'Perempuan', tahunLahir: 1982, rt: 'RT 004', nomorRumah: 'No. 12' },
+  { id: '3', nama: 'Siti Rahmawati', statusKeluarga: 'Kepala Keluarga', gender: 'Perempuan', tahunLahir: 1992, rt: 'RT 001', nomorRumah: 'No. 05' },
+  { id: '4', nama: 'Bambang Pamungkas', statusKeluarga: 'Kepala Keluarga', gender: 'Laki-laki', tahunLahir: 1964, rt: 'RT 003', nomorRumah: 'No. 88' },
+  { id: '5', nama: 'Eko Prasetyo', statusKeluarga: 'Kepala Keluarga', gender: 'Laki-laki', tahunLahir: 1985, rt: 'RT 004', nomorRumah: 'No. 15' },
+  { id: '6', nama: 'Rifky Setiawan', statusKeluarga: 'Anak', kepalaKeluargaId: '1', kepalaKeluargaNama: 'Agus Setiawan', gender: 'Laki-laki', tahunLahir: 2010, rt: 'RT 004', nomorRumah: 'No. 12' },
+  { id: '7', nama: 'Ananda Putri', statusKeluarga: 'Anak', kepalaKeluargaId: '1', kepalaKeluargaNama: 'Agus Setiawan', gender: 'Perempuan', tahunLahir: 2020, rt: 'RT 004', nomorRumah: 'No. 12' },
 ];
 
 export const INITIAL_KEUANGAN: TransaksiKeuangan[] = [

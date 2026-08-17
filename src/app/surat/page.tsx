@@ -43,7 +43,17 @@ export default function AntrianPelayananPage() {
 
           if (isMounted) {
             if (wargaData) {
-              setWargaList(wargaData.map((w: any) => ({ id: w.id, nama: w.nama, tahunLahir: Number(w.tahun_lahir) || 1990, rt: w.rt })));
+              setWargaList(
+                wargaData.map((w: any) => ({
+                  id: String(w.id),
+                  nama: w.nama,
+                  statusKeluarga: w.status_keluarga || 'Kepala Keluarga',
+                  gender: w.gender || 'Laki-laki',
+                  tahunLahir: Number(w.tahun_lahir) || 1990,
+                  rt: w.rt || 'RT 001',
+                  nomorRumah: w.nomor_rumah || '',
+                }))
+              );
             } else {
               setWargaList(INITIAL_WARGA);
             }

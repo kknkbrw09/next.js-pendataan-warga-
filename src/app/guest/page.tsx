@@ -38,14 +38,24 @@ export default function GuestPage() {
       if (isSupabaseConfigured && supabase) {
         try {
           setLoading(true);
-          // Fetch Warga (id, nama, tahun_lahir, rt)
+          // Fetch Warga
           const { data: wargaData } = await supabase
             .from('warga')
-            .select('id, nama, tahun_lahir, rt');
+            .select('id, nama, status_keluarga, gender, tahun_lahir, rt, nomor_rumah');
 
           if (wargaData) {
             setWargaCount(wargaData.length);
-            setWargaDisplayList(wargaData);
+            setWargaDisplayList(
+              wargaData.map((d: any) => ({
+                id: d.id,
+                nama: d.nama,
+                statusKeluarga: d.status_keluarga || 'Kepala Keluarga',
+                gender: d.gender || 'Laki-laki',
+                tahunLahir: Number(d.tahun_lahir) || 1990,
+                rt: d.rt || 'RT 001',
+                nomorRumah: d.nomor_rumah || '',
+              }))
+            );
           }
 
           // Fetch Kegiatan
