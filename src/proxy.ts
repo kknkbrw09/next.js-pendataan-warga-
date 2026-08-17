@@ -10,7 +10,7 @@ export function proxy(request: NextRequest) {
   // - Admin domain: zenkeba.vercel.app, admin.*, dashboard.* (atau ?mode=admin)
 
   const isWargaDomain =
-    hostname.includes('bazeni') ||
+    hostname.includes('kebazeni') ||
     hostname.startsWith('warga.') ||
     hostname.startsWith('publik.') ||
     url.searchParams.get('mode') === 'warga';
