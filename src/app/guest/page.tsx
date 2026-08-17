@@ -189,16 +189,6 @@ export default function GuestPage() {
     );
   });
 
-  const handleLogout = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault();
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('rw_role');
-      localStorage.removeItem('admin_name');
-      sessionStorage.clear();
-      window.location.href = '/';
-    }
-  };
-
   const navLinks = [
     { href: '#dashboard', id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { href: '#data-warga', id: 'data-warga', label: 'Data Warga', icon: 'groups' },
@@ -214,17 +204,17 @@ export default function GuestPage() {
       <aside className="fixed left-0 top-0 h-screen w-[280px] bg-[#012366] flex flex-col py-6 shadow-sm z-50 overflow-y-auto">
         <div className="px-6 mb-8 flex flex-col gap-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#bb0013] flex items-center justify-center shadow-md">
-              <span className="material-symbols-outlined text-white">shield</span>
+            <div className="w-10 h-10 rounded-full bg-[#0033a0] flex items-center justify-center shadow-md">
+              <span className="material-symbols-outlined text-white">home_work</span>
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white leading-tight">Tamu</h2>
-              <p className="text-xs text-white/60">Guest Access</p>
+              <h2 className="text-xl font-bold text-white leading-tight">RW 09</h2>
+              <p className="text-xs text-white/60">Portal Publik Warga</p>
             </div>
           </div>
-          <div className="mt-3 px-3 py-1 bg-blue-700 text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-300 animate-pulse"></span>
-            Akses Warga / Tamu
+          <div className="mt-3 px-3 py-1 bg-emerald-600 text-white text-[10px] font-bold tracking-widest uppercase rounded-full w-fit flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse"></span>
+            Akses Publik Warga
           </div>
         </div>
 
@@ -244,16 +234,6 @@ export default function GuestPage() {
             </a>
           ))}
         </nav>
-
-        <div className="px-4 mt-8">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 text-white/80 hover:bg-red-500/20 hover:text-white transition-all font-semibold text-sm rounded-lg text-left"
-          >
-            <span className="material-symbols-outlined">logout</span>
-            <span>Logout Tamu</span>
-          </button>
-        </div>
       </aside>
 
       {/* Main Content Area */}
@@ -267,13 +247,10 @@ export default function GuestPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <button
-              onClick={handleLogout}
-              className="bg-[#bb0013] hover:bg-red-700 text-white px-4 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
-            >
-              <span className="material-symbols-outlined text-sm">logout</span>
-              Logout
-            </button>
+            <span className="px-3.5 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-full border border-emerald-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Portal Publik Warga
+            </span>
           </div>
         </header>
 

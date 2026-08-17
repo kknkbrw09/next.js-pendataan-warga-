@@ -108,14 +108,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleGuestLogin = (e?: React.MouseEvent) => {
-    if (e) e.preventDefault();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('rw_role', 'guest');
-      window.location.href = '/guest';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#00216e] via-[#012366] to-[#bb0013] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Decorative Background Shapes */}
@@ -204,27 +196,6 @@ export default function LoginPage() {
             {loading ? 'Memverifikasi...' : 'Masuk sebagai Admin'}
           </button>
         </form>
-
-        <div className="relative my-6 flex items-center justify-center">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200"></div>
-          </div>
-          <span className="relative px-3 bg-white text-xs font-bold text-gray-400 uppercase tracking-widest">
-            atau
-          </span>
-        </div>
-
-        {/* Guest Entry Button */}
-        <button
-          onClick={handleGuestLogin}
-          type="button"
-          className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-[#00216e] border border-gray-300 font-bold rounded-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
-        >
-          <span className="material-symbols-outlined text-lg">visibility</span>
-          Masuk sebagai Tamu (Guest View)
-        </button>
-
-
       </div>
     </div>
   );
