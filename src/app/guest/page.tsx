@@ -38,10 +38,10 @@ export default function GuestPage() {
       if (isSupabaseConfigured && supabase) {
         try {
           setLoading(true);
-          // Fetch Warga
+          // Fetch Warga (hanya id, nama, rt)
           const { data: wargaData } = await supabase
             .from('warga')
-            .select('id, nama, status_keluarga, gender, tahun_lahir, rt, nomor_rumah');
+            .select('id, nama, rt');
 
           if (wargaData) {
             setWargaCount(wargaData.length);
@@ -49,11 +49,7 @@ export default function GuestPage() {
               wargaData.map((d: any) => ({
                 id: d.id,
                 nama: d.nama,
-                statusKeluarga: d.status_keluarga || 'Kepala Keluarga',
-                gender: d.gender || 'Laki-laki',
-                tahunLahir: Number(d.tahun_lahir) || 1990,
                 rt: d.rt || 'RT 001',
-                nomorRumah: d.nomor_rumah || '',
               }))
             );
           }
@@ -382,14 +378,13 @@ export default function GuestPage() {
                 <thead>
                   <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
                     <th className="px-6 py-4">Nama Warga</th>
-                    <th className="px-6 py-4">Status Keluarga</th>
                     <th className="px-6 py-4">Wilayah RT</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 text-sm">
                   {filteredWargaDisplay.length === 0 ? (
                     <tr>
-                      <td colSpan={3} className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan={2} className="px-6 py-8 text-center text-gray-500">
                         {searchWargaQuery
                           ? `Tidak ada warga yang cocok dengan kata kunci "${searchWargaQuery}"`
                           : 'Belum ada data warga di database.'}
@@ -400,11 +395,6 @@ export default function GuestPage() {
                       return (
                         <tr key={w.id || idx}>
                           <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>
-                          <td className="px-6 py-4 text-xs font-semibold text-gray-600">
-                            <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] font-bold rounded">
-                              {w.statusKeluarga || w.status_keluarga || 'Kepala Keluarga'}
-                            </span>
-                          </td>
                           <td className="px-6 py-4 text-xs font-semibold">{w.rt || 'RT 001'}</td>
                         </tr>
                       );
