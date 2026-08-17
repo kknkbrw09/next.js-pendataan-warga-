@@ -382,7 +382,7 @@ export default function GuestPage() {
                 <thead>
                   <tr className="bg-gray-100 text-[#444653] text-xs font-bold uppercase">
                     <th className="px-6 py-4">Nama Warga</th>
-                    <th className="px-6 py-4">Estimasi Usia</th>
+                    <th className="px-6 py-4">Status Keluarga</th>
                     <th className="px-6 py-4">Wilayah RT</th>
                   </tr>
                 </thead>
@@ -397,14 +397,12 @@ export default function GuestPage() {
                     </tr>
                   ) : (
                     filteredWargaDisplay.map((w: any, idx: number) => {
-                      const thn = Number(w.tahun_lahir || w.tahunLahir) || 1990;
-                      const usia = currentYear - thn;
                       return (
                         <tr key={w.id || idx}>
                           <td className="px-6 py-4 font-bold text-[#1a1c1c]">{w.nama}</td>
-                          <td className="px-6 py-4 text-xs">
+                          <td className="px-6 py-4 text-xs font-semibold text-gray-600">
                             <span className="px-2.5 py-1 bg-blue-50 text-[#00216e] font-bold rounded">
-                              {usia} Tahun
+                              {w.statusKeluarga || w.status_keluarga || 'Kepala Keluarga'}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-xs font-semibold">{w.rt || 'RT 001'}</td>
