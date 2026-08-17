@@ -45,10 +45,8 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-[280px] bg-[#00216e] flex flex-col py-4 z-50 shadow-md">
       {/* Brand Header */}
       <div className="px-6 mb-8 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm">
-          <span className="material-symbols-outlined text-[#00216e] font-bold text-2xl">
-            home_work
-          </span>
+        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shadow-sm p-1">
+          <img src="/favicon.ico" alt="Logo RW 09" className="w-full h-full object-contain" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-white leading-none">RW 09</h1>

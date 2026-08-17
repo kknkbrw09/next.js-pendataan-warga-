@@ -204,8 +204,8 @@ export default function GuestPage() {
       <aside className="fixed left-0 top-0 h-screen w-[280px] bg-[#012366] flex flex-col py-6 shadow-sm z-50 overflow-y-auto">
         <div className="px-6 mb-8 flex flex-col gap-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#0033a0] flex items-center justify-center shadow-md">
-              <span className="material-symbols-outlined text-white">home_work</span>
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md p-1">
+              <img src="/favicon.ico" alt="Logo RW 09" className="w-full h-full object-contain" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-white leading-tight">RW 09</h2>
