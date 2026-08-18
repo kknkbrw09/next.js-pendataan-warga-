@@ -86,18 +86,18 @@ export default function WargaPage() {
               });
               setWargaList(mapped);
             } else {
-              setWargaList(INITIAL_WARGA);
+              setWargaList([]);
             }
           }
         } catch (err) {
           console.log('Fetch warga error', err);
-          if (isMounted) setWargaList(INITIAL_WARGA);
+          if (isMounted) setWargaList([]);
         } finally {
           if (isMounted) setLoading(false);
         }
       } else {
         if (isMounted) {
-          setWargaList(INITIAL_WARGA);
+          setWargaList([]);
           setLoading(false);
         }
       }
@@ -218,9 +218,16 @@ export default function WargaPage() {
     if (confirm('Apakah Anda yakin ingin menghapus data warga ini?')) {
       if (isSupabaseConfigured && supabase) {
         try {
-          await supabase.from('warga').delete().eq('id', id);
+          const { error } = await supabase.from('warga').delete().eq('id', id);
+          if (error) {
+            console.error('Delete warga error:', error);
+            alert(`Gagal menghapus data warga dari Supabase database: ${error.message}`);
+            return;
+          }
         } catch (err) {
-          console.log('Delete warga error', err);
+          console.error('Delete warga error', err);
+          alert('Terjadi kesalahan saat menghapus data.');
+          return;
         }
       }
       setWargaList((prev) => prev.filter((w) => w.id !== id));
@@ -310,10 +317,10 @@ export default function WargaPage() {
           </div>
 
           {/* Bento Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {loading ? (
               <>
-                {[1, 2, 3, 4].map((i) => (
+                {[1, 2, 3, 4, 5].map((i) => (
                   <div key={i} className="bg-white p-5 rounded-xl border border-[#e2e2e2] shadow-sm animate-pulse h-28 flex justify-between items-start">
                     <div className="space-y-2">
                       <div className="w-24 h-4 bg-gray-200 rounded"></div>
@@ -338,6 +345,39 @@ export default function WargaPage() {
                   <p className="text-xs text-gray-500 font-medium mt-3">
                     {wargaList.filter((w) => w.statusKeluarga === 'Kepala Keluarga').length} Kepala Keluarga
                   </p>
+                </div>
+
+                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-amber-500 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Balita (&lt;5)</p>
+                      <h3 className="text-2xl font-bold text-amber-700">
+                        {wargaList.filter((w) => currentYear - w.tahunLahir < 5).length} Balita
+                      </h3>
+                    </div>
+                    <span className="material-symbols-outlined p-2.5 bg-amber-100 text-amber-700 rounded-lg">
+                      child_care
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#444653] mt-3">Posyandu Balita</p>
+                </div>
+
+                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-teal-600 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-xs text-[#444653] font-semibold mb-1">Anak &amp; Remaja (5-17)</p>
+                      <h3 className="text-2xl font-bold text-teal-700">
+                        {wargaList.filter((w) => {
+                          const usia = currentYear - w.tahunLahir;
+                          return usia >= 5 && usia <= 17;
+                        }).length} Jiwa
+                      </h3>
+                    </div>
+                    <span className="material-symbols-outlined p-2.5 bg-teal-100 text-teal-700 rounded-lg">
+                      school
+                    </span>
+                  </div>
+                  <p className="text-xs text-[#444653] mt-3">Usia Sekolah / Pendidikan</p>
                 </div>
 
                 <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-indigo-600 shadow-sm">
@@ -371,21 +411,6 @@ export default function WargaPage() {
                     </span>
                   </div>
                   <p className="text-xs text-[#444653] mt-3">Posyandu Lansia</p>
-                </div>
-
-                <div className="bg-white p-5 rounded-xl border border-[#e2e2e2] border-l-4 border-l-amber-500 shadow-sm">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-xs text-[#444653] font-semibold mb-1">Kategori Balita (&lt;5)</p>
-                      <h3 className="text-2xl font-bold text-amber-700">
-                        {wargaList.filter((w) => currentYear - w.tahunLahir < 5).length} Balita
-                      </h3>
-                    </div>
-                    <span className="material-symbols-outlined p-2.5 bg-amber-100 text-amber-700 rounded-lg">
-                      child_care
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#444653] mt-3">Posyandu Balita</p>
                 </div>
               </>
             )}

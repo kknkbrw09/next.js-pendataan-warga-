@@ -63,15 +63,7 @@ export interface Pengumuman {
   kategori: string;
 }
 
-export const INITIAL_WARGA: Warga[] = [
-  { id: '1', nama: 'Agus Setiawan', statusKeluarga: 'Kepala Keluarga', gender: 'Laki-laki', tahunLahir: 1979, rt: 'RT 004', nomorRumah: 'No. 12' },
-  { id: '2', nama: 'Dewi Lestari', statusKeluarga: 'Istri', kepalaKeluargaId: '1', kepalaKeluargaNama: 'Agus Setiawan', gender: 'Perempuan', tahunLahir: 1982, rt: 'RT 004', nomorRumah: 'No. 12' },
-  { id: '3', nama: 'Siti Rahmawati', statusKeluarga: 'Kepala Keluarga', gender: 'Perempuan', tahunLahir: 1992, rt: 'RT 001', nomorRumah: 'No. 05' },
-  { id: '4', nama: 'Bambang Pamungkas', statusKeluarga: 'Kepala Keluarga', gender: 'Laki-laki', tahunLahir: 1964, rt: 'RT 003', nomorRumah: 'No. 88' },
-  { id: '5', nama: 'Eko Prasetyo', statusKeluarga: 'Kepala Keluarga', gender: 'Laki-laki', tahunLahir: 1985, rt: 'RT 004', nomorRumah: 'No. 15' },
-  { id: '6', nama: 'Rifky Setiawan', statusKeluarga: 'Anak', kepalaKeluargaId: '1', kepalaKeluargaNama: 'Agus Setiawan', gender: 'Laki-laki', tahunLahir: 2010, rt: 'RT 004', nomorRumah: 'No. 12' },
-  { id: '7', nama: 'Ananda Putri', statusKeluarga: 'Anak', kepalaKeluargaId: '1', kepalaKeluargaNama: 'Agus Setiawan', gender: 'Perempuan', tahunLahir: 2020, rt: 'RT 004', nomorRumah: 'No. 12' },
-];
+export const INITIAL_WARGA: Warga[] = [];
 
 export const INITIAL_KEUANGAN: TransaksiKeuangan[] = [
   { id: '1', tanggal: '2024-10-25', keterangan: 'Biaya Kebersihan Lingkungan', jenis: 'pengeluaran', jumlah: 1500000, kategori: 'Kebersihan' },
