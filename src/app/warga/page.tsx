@@ -118,14 +118,17 @@ export default function WargaPage() {
   const handleOpenModal = (warga?: Warga) => {
     if (warga) {
       setEditingWarga(warga);
+      const isKK = (warga.statusKeluarga || 'Kepala Keluarga') === 'Kepala Keluarga';
+      const kkRecord = !isKK ? wargaList.find((kk) => kk.id === warga.kepalaKeluargaId) : null;
+
       setFormData({
         nama: warga.nama,
         statusKeluarga: warga.statusKeluarga || 'Kepala Keluarga',
         kepalaKeluargaId: warga.kepalaKeluargaId || '',
         gender: warga.gender || 'Laki-laki',
         tahunLahir: warga.tahunLahir || 1995,
-        rt: warga.rt || 'RT 001',
-        nomorRumah: warga.nomorRumah || '',
+        rt: kkRecord ? kkRecord.rt : warga.rt || 'RT 001',
+        nomorRumah: kkRecord ? kkRecord.nomorRumah : warga.nomorRumah || '',
       });
     } else {
       setEditingWarga(null);
@@ -164,6 +167,11 @@ export default function WargaPage() {
     const selectedKK = availableKepalaKeluarga.find((kk) => kk.id === formData.kepalaKeluargaId);
     const kkNama = selectedKK ? selectedKK.nama : undefined;
 
+    // Auto sync address from KK if status != 'Kepala Keluarga'
+    const finalRt = formData.statusKeluarga !== 'Kepala Keluarga' && selectedKK ? selectedKK.rt : formData.rt;
+    const finalNomorRumah =
+      formData.statusKeluarga !== 'Kepala Keluarga' && selectedKK ? selectedKK.nomorRumah : formData.nomorRumah;
+
     let insertedId = Date.now().toString();
 
     // Save to Supabase
@@ -175,12 +183,19 @@ export default function WargaPage() {
           kepala_keluarga_id: formData.statusKeluarga === 'Kepala Keluarga' ? null : formData.kepalaKeluargaId || null,
           gender: formData.gender,
           tahun_lahir: formData.tahunLahir,
-          rt: formData.rt,
-          nomor_rumah: formData.nomorRumah,
+          rt: finalRt,
+          nomor_rumah: finalNomorRumah,
         };
 
         if (editingWarga) {
           await supabase.from('warga').update(payload).eq('id', editingWarga.id);
+          // If updating a KK's address, sync address to all family members under this KK
+          if (formData.statusKeluarga === 'Kepala Keluarga') {
+            await supabase
+              .from('warga')
+              .update({ rt: finalRt, nomor_rumah: finalNomorRumah })
+              .eq('kepala_keluarga_id', editingWarga.id);
+          }
         } else {
           const { data, error } = await supabase.from('warga').insert(payload).select('*');
           if (data && !error && data.length > 0) {
@@ -200,12 +215,20 @@ export default function WargaPage() {
       kepalaKeluargaNama: formData.statusKeluarga === 'Kepala Keluarga' ? undefined : kkNama,
       gender: formData.gender,
       tahunLahir: formData.tahunLahir,
-      rt: formData.rt,
-      nomorRumah: formData.nomorRumah,
+      rt: finalRt,
+      nomorRumah: finalNomorRumah,
     };
 
     if (editingWarga) {
-      setWargaList((prev) => prev.map((w) => (w.id === editingWarga.id ? updatedRecord : w)));
+      setWargaList((prev) =>
+        prev.map((w) => {
+          if (w.id === editingWarga.id) return updatedRecord;
+          if (formData.statusKeluarga === 'Kepala Keluarga' && w.kepalaKeluargaId === editingWarga.id) {
+            return { ...w, rt: finalRt, nomorRumah: finalNomorRumah, kepalaKeluargaNama: formData.nama };
+          }
+          return w;
+        })
+      );
     } else {
       setWargaList((prev) => [updatedRecord, ...prev]);
     }
@@ -668,7 +691,16 @@ export default function WargaPage() {
                   <select
                     required
                     value={formData.kepalaKeluargaId}
-                    onChange={(e) => setFormData({ ...formData, kepalaKeluargaId: e.target.value })}
+                    onChange={(e) => {
+                      const kkId = e.target.value;
+                      const selectedKK = availableKepalaKeluarga.find((kk) => kk.id === kkId);
+                      setFormData((prev) => ({
+                        ...prev,
+                        kepalaKeluargaId: kkId,
+                        rt: selectedKK ? selectedKK.rt : prev.rt,
+                        nomorRumah: selectedKK ? selectedKK.nomorRumah : prev.nomorRumah,
+                      }));
+                    }}
                     className="w-full px-3 py-2 bg-white border border-amber-300 rounded-xl text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-semibold text-gray-800"
                   >
                     <option value="">-- Pilih Kepala Keluarga --</option>
@@ -742,38 +774,52 @@ export default function WargaPage() {
                 </div>
               </div>
 
-              {/* 6. Alamat Lengkap (RT Dropdown 1 - 18 & Nomor Rumah Text Box) */}
+              {/* 6. Alamat Lengkap */}
               <div>
                 <label className="block text-xs font-bold text-[#444653] uppercase mb-1">
                   Alamat Lengkap <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] text-gray-500 mb-0.5">Rukun Tetangga (RT)</label>
-                    <select
-                      value={formData.rt}
-                      onChange={(e) => setFormData({ ...formData, rt: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-semibold bg-white"
-                    >
-                      {RT_OPTIONS.map((rt) => (
-                        <option key={rt} value={rt}>
-                          {rt}
-                        </option>
-                      ))}
-                    </select>
+                {formData.statusKeluarga !== 'Kepala Keluarga' ? (
+                  <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center gap-3 text-xs text-[#00216e] font-semibold animate-in fade-in duration-200">
+                    <span className="material-symbols-outlined text-xl text-[#00216e] shrink-0">home_pin</span>
+                    <div>
+                      <p className="font-bold">Otomatis Mengikuti Alamat Kepala Keluarga</p>
+                      <p className="text-gray-600 font-medium text-[11px] mt-0.5">
+                        {formData.kepalaKeluargaId && availableKepalaKeluarga.find((kk) => kk.id === formData.kepalaKeluargaId)
+                          ? `${availableKepalaKeluarga.find((kk) => kk.id === formData.kepalaKeluargaId)?.rt} - Nomor Rumah: ${availableKepalaKeluarga.find((kk) => kk.id === formData.kepalaKeluargaId)?.nomorRumah || '-'}`
+                          : 'Silakan pilih Kepala Keluarga terlebih dahulu di atas.'}
+                      </p>
+                    </div>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Rukun Tetangga (RT)</label>
+                      <select
+                        value={formData.rt}
+                        onChange={(e) => setFormData({ ...formData, rt: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-semibold bg-white"
+                      >
+                        {RT_OPTIONS.map((rt) => (
+                          <option key={rt} value={rt}>
+                            {rt}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div>
-                    <label className="block text-[11px] text-gray-500 mb-0.5">Nomor Rumah</label>
-                    <input
-                      type="text"
-                      value={formData.nomorRumah}
-                      onChange={(e) => setFormData({ ...formData, nomorRumah: e.target.value })}
-                      placeholder="Contoh: No. 12A"
-                      className="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-medium"
-                    />
+                    <div>
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Nomor Rumah</label>
+                      <input
+                        type="text"
+                        value={formData.nomorRumah}
+                        onChange={(e) => setFormData({ ...formData, nomorRumah: e.target.value })}
+                        placeholder="Contoh: No. 12A"
+                        className="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-[#00216e] outline-none font-medium"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
