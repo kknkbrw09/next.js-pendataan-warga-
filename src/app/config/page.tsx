@@ -537,9 +537,9 @@ export default function ConfigPage() {
                   <input
                     type="text"
                     required
-                    value={config.adminUsername || 'admin'}
+                    value={config.adminUsername ?? ''}
                     onChange={(e) => setConfig({ ...config, adminUsername: e.target.value })}
-                    placeholder="admin"
+                    placeholder="Masukkan username admin"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
                   />
                 </div>
@@ -551,7 +551,7 @@ export default function ConfigPage() {
                   <input
                     type="text"
                     required
-                    value={config.adminPassword || 'admin'}
+                    value={config.adminPassword ?? ''}
                     onChange={(e) => setConfig({ ...config, adminPassword: e.target.value })}
                     placeholder="Masukkan password admin baru"
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
