@@ -12,6 +12,8 @@ export default function ConfigPage() {
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [currentPasswordError, setCurrentPasswordError] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   useEffect(() => {
     setConfig(getAppConfig());
@@ -566,16 +568,28 @@ export default function ConfigPage() {
                     <span className="material-symbols-outlined text-sm text-amber-600">lock</span>
                     Password Saat Ini *
                   </label>
-                  <input
-                    type="password"
-                    value={currentPasswordInput}
-                    onChange={(e) => {
-                      setCurrentPasswordInput(e.target.value);
-                      if (currentPasswordError) setCurrentPasswordError('');
-                    }}
-                    placeholder="Masukkan password saat ini"
-                    className="w-full px-4 py-2.5 bg-amber-50/40 border border-amber-200 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all font-mono"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={currentPasswordInput}
+                      onChange={(e) => {
+                        setCurrentPasswordInput(e.target.value);
+                        if (currentPasswordError) setCurrentPasswordError('');
+                      }}
+                      placeholder="Masukkan password saat ini"
+                      className="w-full px-4 py-2.5 pr-10 bg-amber-50/40 border border-amber-200 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-700/70 hover:text-amber-900 transition-colors p-1"
+                      title={showCurrentPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        {showCurrentPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
                   <p className="text-[11px] text-amber-700/80 mt-1">
                     Wajib diisi jika hendak mengubah username atau password admin.
                   </p>
@@ -599,14 +613,26 @@ export default function ConfigPage() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
                     Password Admin Baru
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={config.adminPassword ?? ''}
-                    onChange={(e) => setConfig({ ...config, adminPassword: e.target.value })}
-                    placeholder="Masukkan password admin baru"
-                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      value={config.adminPassword ?? ''}
+                      onChange={(e) => setConfig({ ...config, adminPassword: e.target.value })}
+                      placeholder="Masukkan password admin baru"
+                      className="w-full px-4 py-2.5 pr-10 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors p-1"
+                      title={showNewPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                    >
+                      <span className="material-symbols-outlined text-lg">
+                        {showNewPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
                   <p className="text-[11px] text-gray-400 mt-1">
                     Password ini digunakan untuk login ke portal administrator RW 09.
                   </p>
