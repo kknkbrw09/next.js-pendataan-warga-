@@ -11,6 +11,7 @@ export default function ConfigPage() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
   const [currentPasswordError, setCurrentPasswordError] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -23,34 +24,45 @@ export default function ConfigPage() {
     e.preventDefault();
     setCurrentPasswordError('');
 
-    // Check if credentials are being updated compared to saved config
     const savedConfig = getAppConfig();
-    const isCredentialsChanged =
-      (config.adminUsername && config.adminUsername.trim() !== (savedConfig.adminUsername || 'admin')) ||
-      (config.adminPassword && config.adminPassword.trim() !== (savedConfig.adminPassword || 'admin'));
+    const activePassword = savedConfig.adminPassword || 'admin';
+    const activeUsername = savedConfig.adminUsername || 'admin';
 
-    if (isCredentialsChanged) {
+    const targetUsername = (config.adminUsername || 'admin').trim().toLowerCase();
+    const isUsernameChanged = targetUsername !== activeUsername.trim().toLowerCase();
+    const isPasswordChanged = newPasswordInput.trim().length > 0;
+
+    if (isUsernameChanged || isPasswordChanged) {
       if (!currentPasswordInput.trim()) {
-        setCurrentPasswordError('Silakan masukkan Password Saat Ini untuk mengonfirmasi perubahan akun admin.');
+        setCurrentPasswordError('Silakan masukkan Password Saat Ini untuk mengonfirmasi perubahan kredensial admin.');
         return;
       }
 
-      const activePassword = savedConfig.adminPassword || 'admin';
       if (currentPasswordInput.trim() !== activePassword) {
         setCurrentPasswordError('Password Saat Ini tidak sesuai. Harap periksa kembali password Anda.');
         return;
       }
     }
 
-    const updated = saveAppConfig(config);
+    const finalPassword = isPasswordChanged ? newPasswordInput.trim() : activePassword;
+    const finalUsername = targetUsername;
+
+    const updatedConfig: AppConfig = {
+      ...config,
+      adminUsername: finalUsername,
+      adminPassword: finalPassword,
+    };
+
+    const updated = saveAppConfig(updatedConfig);
     setConfig(updated);
     setCurrentPasswordInput('');
+    setNewPasswordInput('');
 
-    if (isSupabaseConfigured && supabase && config.adminUsername && config.adminPassword) {
+    if (isSupabaseConfigured && supabase && finalUsername && finalPassword) {
       try {
-        const hashedPassword = await hashSensitiveData(config.adminPassword);
+        const hashedPassword = await hashSensitiveData(finalPassword);
         const { error: rpcError } = await supabase.rpc('sync_admin_credentials', {
-          p_username: config.adminUsername.trim().toLowerCase(),
+          p_username: finalUsername,
           p_password_hash: hashedPassword,
         });
 
@@ -616,10 +628,9 @@ export default function ConfigPage() {
                   <div className="relative">
                     <input
                       type={showNewPassword ? 'text' : 'password'}
-                      required
-                      value={config.adminPassword ?? ''}
-                      onChange={(e) => setConfig({ ...config, adminPassword: e.target.value })}
-                      placeholder="Masukkan password admin baru"
+                      value={newPasswordInput}
+                      onChange={(e) => setNewPasswordInput(e.target.value)}
+                      placeholder="Kosongkan jika tidak ingin diubah"
                       className="w-full px-4 py-2.5 pr-10 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] focus:bg-white focus:outline-none transition-all font-mono"
                     />
                     <button
@@ -634,7 +645,7 @@ export default function ConfigPage() {
                     </button>
                   </div>
                   <p className="text-[11px] text-gray-400 mt-1">
-                    Password ini digunakan untuk login ke portal administrator RW 09.
+                    Isi hanya jika Anda hendak mengganti password admin.
                   </p>
                 </div>
               </div>
