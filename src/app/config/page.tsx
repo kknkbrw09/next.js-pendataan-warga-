@@ -23,16 +23,14 @@ export default function ConfigPage() {
     if (isSupabaseConfigured && supabase && config.adminUsername && config.adminPassword) {
       try {
         const hashedPassword = await hashSensitiveData(config.adminPassword);
-        await supabase
-          .from('admin_users')
-          .upsert(
-            {
-              username: config.adminUsername.trim().toLowerCase(),
-              password: hashedPassword,
-              nama_admin: 'Pengurus RW 09',
-            },
-            { onConflict: 'username' }
-          );
+        const { error: rpcError } = await supabase.rpc('sync_admin_credentials', {
+          p_username: config.adminUsername.trim().toLowerCase(),
+          p_password_hash: hashedPassword,
+        });
+
+        if (rpcError) {
+          console.warn('RPC sync_admin_credentials error:', rpcError.message);
+        }
       } catch (err) {
         console.warn('Sync admin credentials to Supabase error:', err);
       }

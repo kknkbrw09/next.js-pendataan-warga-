@@ -94,11 +94,7 @@ export const INITIAL_IURAN: Iuran[] = [
   { id: '4', blok: 'Blok D', namaWarga: 'Hendrikus', bulan: currentBulan, tahun: currentTahun, status: 'Lunas', jumlah: 50000 },
 ];
 
-export const INITIAL_SURAT: SuratPengantar[] = [
-  { id: '1', noAntrian: 'A-001', namaPemohon: 'Ananda Putri', rt: 'RT 004', keperluan: 'Pengurusan Surat Keterangan Domisili', tanggal: '2024-10-12', status: 'Selesai' },
-  { id: '2', noAntrian: 'A-002', namaPemohon: 'Agus Setiawan', rt: 'RT 004', keperluan: 'Konsultasi Pengajuan Permohonan KTP Baru', tanggal: '2024-10-18', status: 'Diproses' },
-  { id: '3', noAntrian: 'A-003', namaPemohon: 'Siti Rahmawati', rt: 'RT 001', keperluan: 'Pengurusan SKTM (Surat Keterangan Tidak Mampu)', tanggal: '2024-10-20', status: 'Menunggu' },
-];
+export const INITIAL_SURAT: SuratPengantar[] = [];
 
 export const INITIAL_PENGUMUMAN: Pengumuman[] = [
   { id: '1', judul: 'Rapat Koordinasi Keamanan Lingkungan', tanggal: '25 Okt 2024', isi: 'Diharapkan perwakilan tiap RT untuk hadir dalam agenda pembahasan sistem keamanan keliling (Siskamling) baru.', penting: true, kategori: 'Penting' },

@@ -77,7 +77,7 @@ export default function GuestPage() {
 
           // Fetch Antrian Pelayanan
           const { data: antrianData } = await supabase.from('surat_pengantar').select('*').order('created_at', { ascending: false });
-          if (antrianData && antrianData.length > 0) {
+          if (antrianData) {
             setAntrianDisplayList(antrianData);
           }
         } catch (e) {
