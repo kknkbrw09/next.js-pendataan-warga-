@@ -26,6 +26,10 @@ export default function WargaPage() {
   const [selectedRt, setSelectedRt] = useState('Semua RT');
   const [selectedUsia, setSelectedUsia] = useState('Semua Usia');
 
+  // Pagination State
+  const [itemsPerPage, setItemsPerPage] = useState<number | 'Semua'>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
   // Modal Add/Edit State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingWarga, setEditingWarga] = useState<Warga | null>(null);
@@ -297,6 +301,20 @@ export default function WargaPage() {
     return matchesSearch && matchesRt && matchesUsia;
   });
 
+  // Reset page when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedRt, selectedUsia, itemsPerPage]);
+
+  // Pagination calculations
+  const totalFiltered = filteredWarga.length;
+  const limit = itemsPerPage === 'Semua' ? totalFiltered : Number(itemsPerPage);
+  const totalPages = limit > 0 ? Math.ceil(totalFiltered / limit) : 1;
+  const activePage = Math.min(currentPage, totalPages || 1);
+  const startIndex = itemsPerPage === 'Semua' ? 0 : (activePage - 1) * limit;
+  const endIndex = itemsPerPage === 'Semua' ? totalFiltered : startIndex + limit;
+  const paginatedWarga = filteredWarga.slice(startIndex, endIndex);
+
   return (
     <div className="flex min-h-screen bg-[#f9f9f9]">
       {toastMessage && (
@@ -468,10 +486,26 @@ export default function WargaPage() {
                   <option>Dewasa (18-59 Thn)</option>
                   <option>Lansia (60+ Thn)</option>
                 </select>
+
+                <div className="h-4 w-[1px] bg-gray-300 mx-1 hidden sm:block"></div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500 font-medium hidden sm:inline">Tampilkan:</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(e.target.value === 'Semua' ? 'Semua' : Number(e.target.value))}
+                    className="bg-white border border-[#c4c5d5] rounded-lg px-3 py-1.5 text-xs font-bold text-[#00216e] focus:ring-2 focus:ring-[#00216e] outline-none cursor-pointer"
+                  >
+                    <option value={10}>10 per halaman</option>
+                    <option value={25}>25 per halaman</option>
+                    <option value={50}>50 per halaman</option>
+                    <option value="Semua">Tampilkan Semua</option>
+                  </select>
+                </div>
               </div>
 
               <div className="text-xs text-[#444653] font-medium">
-                Menampilkan <strong>{filteredWarga.length}</strong> dari {wargaList.length} warga
+                Menampilkan <strong>{totalFiltered === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, totalFiltered)}</strong> dari <strong>{totalFiltered}</strong> data terfilter (Total: {wargaList.length})
               </div>
             </div>
 
@@ -494,14 +528,14 @@ export default function WargaPage() {
                         Memuat data warga...
                       </td>
                     </tr>
-                  ) : filteredWarga.length === 0 ? (
+                  ) : paginatedWarga.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                         Tidak ada data warga yang cocok dengan kriteria pencarian/filter.
                       </td>
                     </tr>
                   ) : (
-                    filteredWarga.map((warga) => {
+                    paginatedWarga.map((warga) => {
                       const initials = warga.nama
                         .split(' ')
                         .map((n) => n[0])
@@ -518,19 +552,19 @@ export default function WargaPage() {
                               <div
                                 className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
                                   warga.gender === 'Perempuan'
-                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
-                                    : 'bg-[#00216e]/10 text-[#00216e] border border-blue-200'
+                                    ? 'bg-pink-100 text-pink-700'
+                                    : 'bg-blue-100 text-blue-700'
                                 }`}
                               >
                                 {initials}
                               </div>
                               <div>
-                                <span className="font-bold text-[#1a1c1c] block">{warga.nama}</span>
-                                <span className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
-                                  <span className="material-symbols-outlined text-[13px]">
+                                <p className="font-bold text-[#1a1c1c]">{warga.nama}</p>
+                                <span className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                                  <span className="material-symbols-outlined text-[14px]">
                                     {warga.gender === 'Perempuan' ? 'female' : 'male'}
                                   </span>
-                                  {warga.gender || 'Laki-laki'}
+                                  {warga.gender}
                                 </span>
                               </div>
                             </div>
@@ -538,45 +572,35 @@ export default function WargaPage() {
 
                           {/* Status Keluarga */}
                           <td className="px-6 py-4">
-                            <div>
-                              <span
-                                className={`inline-block px-2.5 py-1 rounded-full text-xs font-bold border ${
-                                  isKK
-                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
-                                    : 'bg-blue-50 text-blue-700 border-blue-200'
-                                }`}
-                              >
-                                {warga.statusKeluarga || 'Kepala Keluarga'}
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${
+                                isKK
+                                  ? 'bg-[#00216e]/10 text-[#00216e] border border-[#00216e]/20'
+                                  : 'bg-gray-100 text-gray-700 border border-gray-200'
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-[14px]">
+                                {isKK ? 'home_app_logo' : 'person'}
                               </span>
-                              {!isKK && (
-                                <p className="text-[11px] text-gray-500 mt-1">
-                                  KK:{' '}
-                                  <strong className="text-gray-700">
-                                    {warga.kepalaKeluargaNama ||
-                                      wargaList.find((kk) => kk.id === warga.kepalaKeluargaId)?.nama ||
-                                      '-'}
-                                  </strong>
-                                </p>
-                              )}
-                            </div>
+                              {warga.statusKeluarga}
+                            </span>
+                            {!isKK && warga.kepalaKeluargaNama && (
+                              <p className="text-[11px] text-gray-500 mt-1 font-medium">
+                                KK: {warga.kepalaKeluargaNama}
+                              </p>
+                            )}
                           </td>
 
-                          {/* Usia & Tahun Lahir */}
+                          {/* Tahun Lahir / Usia */}
                           <td className="px-6 py-4">
-                            <div>
-                              <span className="font-bold text-[#00216e] text-sm">
-                                {calculatedUsia} Tahun
-                              </span>
-                              <span className="text-xs text-gray-400 block mt-0.5 font-mono">
-                                Thn Lahir: {warga.tahunLahir}
-                              </span>
-                            </div>
+                            <p className="font-bold text-[#1a1c1c]">{calculatedUsia} Tahun</p>
+                            <p className="text-xs text-gray-500 font-mono">Thn Lahir: {warga.tahunLahir}</p>
                           </td>
 
                           {/* Alamat Lengkap */}
                           <td className="px-6 py-4">
-                            <div>
-                              <span className="px-2 py-0.5 bg-gray-100 text-[#1a1c1c] rounded-md text-xs font-semibold border border-gray-200">
+                            <div className="flex items-center">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold bg-gray-100 text-gray-800">
                                 {warga.rt}
                               </span>
                               <span className="text-xs text-gray-600 ml-2 font-medium">
@@ -611,6 +635,56 @@ export default function WargaPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Footer */}
+            {itemsPerPage !== 'Semua' && totalPages > 1 && (
+              <div className="p-4 bg-gray-50 border-t border-[#e2e2e2] flex flex-wrap justify-between items-center gap-3">
+                <p className="text-xs text-[#444653]">
+                  Halaman <strong>{activePage}</strong> dari <strong>{totalPages}</strong>
+                </p>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    disabled={activePage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold text-gray-700 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-sm">chevron_left</span>
+                    Sebelumnya
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => page === 1 || page === totalPages || Math.abs(page - activePage) <= 1)
+                    .map((page, idx, arr) => {
+                      const prevPage = arr[idx - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+                      return (
+                        <div key={page} className="flex items-center">
+                          {showEllipsis && <span className="px-1 text-gray-400 text-xs">...</span>}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              activePage === page
+                                ? 'bg-[#00216e] text-white shadow-sm'
+                                : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                  <button
+                    disabled={activePage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-bold text-gray-700 bg-white hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    Selanjutnya
+                    <span className="material-symbols-outlined text-sm">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>

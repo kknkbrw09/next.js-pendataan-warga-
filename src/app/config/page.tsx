@@ -10,6 +10,8 @@ import { hashSensitiveData } from '@/lib/security';
 export default function ConfigPage() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_APP_CONFIG);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [currentPasswordError, setCurrentPasswordError] = useState('');
 
   useEffect(() => {
     setConfig(getAppConfig());
@@ -17,8 +19,30 @@ export default function ConfigPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentPasswordError('');
+
+    // Check if credentials are being updated compared to saved config
+    const savedConfig = getAppConfig();
+    const isCredentialsChanged =
+      (config.adminUsername && config.adminUsername.trim() !== (savedConfig.adminUsername || 'admin')) ||
+      (config.adminPassword && config.adminPassword.trim() !== (savedConfig.adminPassword || 'admin'));
+
+    if (isCredentialsChanged) {
+      if (!currentPasswordInput.trim()) {
+        setCurrentPasswordError('Silakan masukkan Password Saat Ini untuk mengonfirmasi perubahan akun admin.');
+        return;
+      }
+
+      const activePassword = savedConfig.adminPassword || 'admin';
+      if (currentPasswordInput.trim() !== activePassword) {
+        setCurrentPasswordError('Password Saat Ini tidak sesuai. Harap periksa kembali password Anda.');
+        return;
+      }
+    }
+
     const updated = saveAppConfig(config);
     setConfig(updated);
+    setCurrentPasswordInput('');
 
     if (isSupabaseConfigured && supabase && config.adminUsername && config.adminPassword) {
       try {
@@ -529,10 +553,37 @@ export default function ConfigPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {currentPasswordError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-xs font-semibold flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">error</span>
+                  <span>{currentPasswordError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-amber-800 mb-1.5 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm text-amber-600">lock</span>
+                    Password Saat Ini *
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPasswordInput}
+                    onChange={(e) => {
+                      setCurrentPasswordInput(e.target.value);
+                      if (currentPasswordError) setCurrentPasswordError('');
+                    }}
+                    placeholder="Masukkan password saat ini"
+                    className="w-full px-4 py-2.5 bg-amber-50/40 border border-amber-200 rounded-xl text-sm font-bold text-[#00216e] focus:ring-2 focus:ring-amber-500 focus:bg-white focus:outline-none transition-all font-mono"
+                  />
+                  <p className="text-[11px] text-amber-700/80 mt-1">
+                    Wajib diisi jika hendak mengubah username atau password admin.
+                  </p>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
-                    Username Admin
+                    Username Admin Baru
                   </label>
                   <input
                     type="text"
@@ -546,7 +597,7 @@ export default function ConfigPage() {
 
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#444653] mb-1.5">
-                    Password Admin
+                    Password Admin Baru
                   </label>
                   <input
                     type="text"
